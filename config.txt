@@ -1,0 +1,2 @@
+socket_name=./mysock;
+max_num_thread=10;
