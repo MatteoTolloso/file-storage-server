@@ -27,9 +27,8 @@ int main(void){
 
     /* FINE preaprazione della coda concorrente e della pipe */
 
-
-
-
+    
+    
 
 
     /* INIZIO generazione dei thread worker */
