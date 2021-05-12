@@ -69,7 +69,7 @@ int parse(char ** socket_name, int * max_num_file, int * max_dim_storage, int * 
     }
     else{
         perror("lettura config.txt");
-        return -1;
+        exit(-1);
     }
 
 

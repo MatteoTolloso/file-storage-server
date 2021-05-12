@@ -1,9 +1,11 @@
 #ifndef _PARSE_H
 #define _PARSE_H
 
+#define _POSIX_C_SOURCE 200809L 
 #include <stdlib.h>
 #include <stdio.h>
 #include <util.h>
+
 #include <string.h>
 
 #define PARSE_BUF_DIM 64

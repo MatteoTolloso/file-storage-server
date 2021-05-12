@@ -1,6 +1,5 @@
 #include <sharedqueue.h>
-#include <util.h>
-#include <errno.h>
+
 
 SharedQueue_t * init_SharedQueue(){
 
