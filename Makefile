@@ -1,31 +1,17 @@
 
-SHELL           = /bin/bash
-CC		=  gcc
-AR              =  ar
-CFLAGS	        +=  -std=c99 -Wall -Werror -g
-ARFLAGS         =  rvs
-INCLUDES	= -I. -I ./includes
-LDFLAGS 	= -L.
-OPTFLAGS	= -O3 
-LIBS            = -lpthread
 
-# aggiungere qui altri targets
-TARGETS		= 	toup_server  \
-		  toup_client  \
-		  
+#linking
 
-.PHONY: all clean cleanall testtoup
-.SUFFIXES: .c .h
+server: main.o parser.o sharedqueue.o
+	gcc ./obj/main.o ./obj/parser.o ./obj/sharedqueue.o -o server
 
-%: %.c
-	$(CC) $(CFLAGS) $(INCLUDES) $(OPTFLAGS) -o $@ $< $(LDFLAGS) $(LIBS)
+#obj file
 
-%.o: %.c
-	$(CC) $(CFLAGS) $(INCLUDES) $(OPTFLAGS) -c -o $@ $<
+main.o: ./src/main.c
+	gcc ./src/main.c -I ./includes -c -o ./obj/main.o
 
-all		: $(TARGETS)
+parser.o: ./src/parser.c
+	gcc ./src/parser.c -I ./includes -c -o ./obj/parser.o
 
-clean		: 
-	rm -f $(TARGETS)
-cleanall	: clean
-	\rm -f *.o *~ *.a ./cs_sock ./toup?.txt
+sharedqueue.o: ./src/sharedqueue.c
+	gcc ./src/sharedqueue.c -I ./includes -c -o ./obj/sharedqueue.o
