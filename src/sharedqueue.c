@@ -7,7 +7,7 @@ SharedQueue_t * init_SharedQueue(){
 
     EXIT_ON( q = (SharedQueue_t*)malloc(sizeof(SharedQueue_t)), == NULL);
 
-    EXIT_ON( memset(q, '0', sizeof(SharedQueue_t)), == NULL);
+    EXIT_ON( memset(q, 0, sizeof(SharedQueue_t)), == NULL);
 
     EXIT_ON(q->set = malloc(sizeof(int) * SHARED_QUEUE_MAX_DIM), == NULL);
 

@@ -1,5 +1,5 @@
 
-flags = -g -O3 -Wall   -I ./includes -std=c99 -pedantic #-Werror
+flags = -g -O3 -Wall -I ./includes -std=c99 -pedantic #-Werror
 
 #all 
 
