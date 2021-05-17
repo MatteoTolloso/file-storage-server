@@ -8,15 +8,72 @@
 #include <sys/select.h>
 #include <connection.h>
 
+#include <signal.h>
+
+volatile sig_atomic_t endMode = 0;
+
+void ter_handler(int sig){
+
+    if ((sig == SIGINT) || (sig == SIGQUIT)){
+        endMode = 2;
+        return;
+    }
+    if( sig == SIGHUP){
+        endMode = 1;
+        return;
+    }
+
+    write(1, "unknown signal", 15);
+}
+
+void handler_installer(){
+
+    sigset_t fullmask, handlermask, complementar;
+    sigfillset(&fullmask);
+    sigemptyset(&handlermask);
+    sigfillset(&complementar);
+    EXIT_ON(pthread_sigmask(SIG_SETMASK, &fullmask, NULL), != 0);
+
+    sigaddset(&handlermask, SIGINT);
+    sigaddset(&handlermask, SIGQUIT);
+    sigaddset(&handlermask, SIGHUP);
+    sigdelset(&complementar, SIGINT);
+    sigdelset(&complementar, SIGQUIT);
+    sigdelset(&complementar, SIGHUP);
+    
+    struct sigaction sa;
+    EXIT_ON(memset(&sa, 0, sizeof(struct sigaction)), == NULL);
+    
+    sa.sa_handler = ter_handler;
+    sa.sa_mask = handlermask;
+    EXIT_ON( sigaction(SIGINT, &sa, NULL), != 0);
+    EXIT_ON( sigaction(SIGQUIT, &sa, NULL), != 0);
+    EXIT_ON( sigaction(SIGHUP, &sa, NULL), != 0);
+
+    EXIT_ON(pthread_sigmask(SIG_SETMASK, &complementar, NULL), != 0);
+
+}
+
 
 
 int main(int argc, char ** argv){
 
+    /* INIZIO installazione gestore segnali */
+    
+    handler_installer();
+
+    /* FINE installazione gestore segnali */
+
+
+
+    
+
+
+
+
     /* INIZIO configurazione dei parametri dal file config.txt */
     
     char * sck_name; int max_num_file, max_dim_storage, num_thread_worker;
-
-    
 
     parse(argv[1], &sck_name,  &max_num_file,  &max_dim_storage,  &num_thread_worker);
 
@@ -42,8 +99,7 @@ int main(int argc, char ** argv){
 
 
     /* INIZIO generazione dei thread worker */
-    // ricorda di mascherare tutti i segnali
-    // .......
+    
 
     /* FINE generazione dei thread worker */
 
