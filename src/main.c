@@ -6,20 +6,19 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/select.h>
-// da mettere nell'header di inizializzazione del socket
-#include <sys/socket.h>
-#include <sys/un.h>
-#define UNIX_PATH_MAX 108
-#define MAX_CONNECTION_QUEUE 16
+#include <connection.h>
 
 
-int main(void){
+
+int main(int argc, char ** argv){
 
     /* INIZIO configurazione dei parametri dal file config.txt */
     
     char * sck_name; int max_num_file, max_dim_storage, num_thread_worker;
 
-    parse(&sck_name,  &max_num_file,  &max_dim_storage,  &num_thread_worker);
+    
+
+    parse(argv[1], &sck_name,  &max_num_file,  &max_dim_storage,  &num_thread_worker);
 
     printf("socket name:%s\nmax_num_file:%d\nmax_dim_storage:%d\nnum_thread_worker:%d\n", 
             sck_name, max_num_file, max_dim_storage, num_thread_worker);
@@ -50,43 +49,45 @@ int main(void){
 
     /* INIZIO gestione delle richeste */
 
-    // prima parte da mettere in un file separato
-    EXIT_ON(strlen(sck_name) >= UNIX_PATH_MAX, != 0);
-    int socket_fd;
-    EXIT_ON(socket_fd = socket(AF_UNIX, SOCK_STREAM, 0), == -1);
-    struct sockaddr_un server_addr;
-    EXIT_ON(memset(&server_addr, 0, sizeof(struct sockaddr_un)), == NULL);
-    server_addr.sun_family = AF_UNIX;
-    EXIT_ON(strncpy(server_addr.sun_path, sck_name, strlen(sck_name) + 1),  == NULL);
-    EXIT_ON(bind(socket_fd, (struct sockaddr_un *)&server_addr, sizeof(struct sockaddr_un)), != 0);
-    EXIT_ON(listen(socket_fd, MAX_CONNECTION_QUEUE), != 0);
+    // prima parte da mettere in un file separato 
+    
+    int socket_fd = init_server(sck_name);
 
-    int nread=0;
     fd_set tmpset, set;
     FD_ZERO(&tmpset);
     FD_ZERO(&set);
     FD_SET(socket_fd, &set);
     int fd_max = socket_fd; // attenzione
 
-    // aggiungi pipe per la gestione dei segnali
+   
     while(1){
         tmpset = set;
         EXIT_ON(select(fd_max + 1, &tmpset, NULL, NULL, NULL), == -1); // attenzione all'arrivo del segnale 
-                // idea thread che si occupa dei segnali e che manda informazioni tramite la pipe
-
-        //if( FD_ISSET(signal_pipe_read, &tmpset)){ }// è arrivato un segnale
-
-
-        
-
-        for(int i=0; i< fd_max + 1, i++){
-
-            
-
-
+                
+        for (int i = 0; i< fd_max +1; i++){
+            if(FD_ISSET(i, &tmpset)){
+                
+                if(i == socket_fd){     // è arrivata una nuova richesta di connessione
+                    int newConnFd;
+                    EXIT_ON(newConnFd = accept(socket_fd, NULL, NULL), == -1);
+                    FD_SET(newConnFd, &set);
+                    if(newConnFd > fd_max) fd_max = newConnFd;
+                    continue;
+                }
+                else if(i == pipeReadig_fd){  // fd di rotorno dalla pipe
+                    int returnedConnFd;
+                    EXIT_ON(read(i, &returnedConnFd, sizeof(int)), != sizeof(int));
+                    FD_SET(returnedConnFd, &set);
+                    continue;
+                }
+                else{   // un client già conesso ha inviato un messaggio
+                    SharedQueue_push(ready_clients, i); // verrà gestito da un worker
+                    FD_CLR(i, &set);
+                    if (i == fd_max) fd_max = updatemax(set, fd_max);
+                    continue;
+                }
+            }
         }
-
-
     }
 
 

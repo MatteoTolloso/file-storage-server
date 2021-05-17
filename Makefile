@@ -7,8 +7,8 @@ all: server
 
 #linking
 
-server: ./obj/main.o ./obj/parser.o ./obj/sharedqueue.o
-	gcc ./obj/main.o ./obj/parser.o ./obj/sharedqueue.o -o ./server -pthread
+server: ./obj/main.o ./obj/parser.o ./obj/sharedqueue.o ./obj/connection.o
+	gcc ./obj/main.o ./obj/parser.o ./obj/sharedqueue.o ./obj/connection.o -o ./server -pthread
 
 #obj file
 
@@ -20,3 +20,8 @@ server: ./obj/main.o ./obj/parser.o ./obj/sharedqueue.o
 
 ./obj/sharedqueue.o: ./src/sharedqueue.c
 	gcc ./src/sharedqueue.c $(flags) -c -o ./obj/sharedqueue.o
+
+./obj/connection.o: ./src/connection.c
+	gcc ./src/connection.c $(flags) -c -o ./obj/connection.o
+
+# esprimere la dipendanza con gli header

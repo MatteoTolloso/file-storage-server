@@ -9,7 +9,7 @@
 #include <string.h>
 
 #define PARSE_BUF_DIM 64
-#define CONFIG_FILE_PATH "config.txt"
+
 
 #define ARG_1 "socket_name"
 #define ARG_2 "max_num_file"
@@ -23,6 +23,6 @@ per aggiungere un altro parametro:
 
 */
 
-int parse(char ** socket_name, int * max_num_file, int * max_dim_storage, int * num_thread_worker);
+int parse(char* configpath, char ** socket_name, int * max_num_file, int * max_dim_storage, int * num_thread_worker);
 
 #endif /* _PARSE_H */

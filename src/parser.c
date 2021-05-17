@@ -2,10 +2,10 @@
 #include <parser.h>
 
 
-int parse(char ** socket_name, int * max_num_file, int * max_dim_storage, int * num_thread_worker){
+int parse(char* configpath, char ** socket_name, int * max_num_file, int * max_dim_storage, int * num_thread_worker){
 
     FILE * fptr;
-    EXIT_ON( fptr = fopen(CONFIG_FILE_PATH, "r"), ==  NULL);
+    EXIT_ON( fptr = fopen(configpath, "r"), ==  NULL);
     
     #ifdef DEBUG
     printf("success open file \n");

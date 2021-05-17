@@ -2,4 +2,6 @@ scrivi le macro per gestire le chiamate di sistema
 
 thraead manager con coda concorrente e pipe per il ritorno dei descrittori
 
+deve esserci sempre un messaggio di risposta da parte del server   
 
+passare il file config da linea di comando 
