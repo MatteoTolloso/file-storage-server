@@ -23,7 +23,7 @@ void ter_handler(int sig){
         return;
     }
 
-    write(1, "unknown signal", 15);
+    EXIT_ON(write(1, "unknown signal", 15), <= 0);
 }
 
 void handler_installer(){
@@ -66,12 +66,10 @@ int main(int argc, char ** argv){
 
 
 
-    
-
-
-
-
     /* INIZIO configurazione dei parametri dal file config.txt */
+
+    
+    if (argc < 2) EXIT_ON("errore parametri",);
     
     char * sck_name; int max_num_file, max_dim_storage, num_thread_worker;
 
@@ -108,7 +106,7 @@ int main(int argc, char ** argv){
     // prima parte da mettere in un file separato 
     
     int socket_fd = init_server(sck_name);
-
+    int activeClients = 0;
     fd_set tmpset, set;
     FD_ZERO(&tmpset);
     FD_ZERO(&set);
@@ -116,37 +114,53 @@ int main(int argc, char ** argv){
     int fd_max = socket_fd; // attenzione
 
    
-    while(1){
+    while(1){ 
+
+        if(endMode != 0){   // devo terminare
+            FD_CLR(socket_fd, &set);    // non accetta nuove connessioni
+            unlink(sck_name);
+        }
+        if(endMode == 2){   // terminazione veloce
+            for(int i=0; i<fd_max+1; i++){
+                if(FD_ISSET(i, &set) && (i != pipeReadig_fd)) close(i);
+            }
+            break;
+        }
+
+        if((endMode == 1) && (activeClients == 0)) break;
+
         tmpset = set;
-        EXIT_ON(select(fd_max + 1, &tmpset, NULL, NULL, NULL), == -1); // attenzione all'arrivo del segnale 
-                
+        if( select(fd_max + 1, &tmpset, NULL, NULL, NULL) == -1){ // attenzione all'arrivo del segnale 
+            if(errno == EINTR){
+                printf("un segnale ha interrotto la select");
+                continue;
+            } 
+            else EXIT_ON("errore sconosciuto", == NULL);
+        }  
         for (int i = 0; i< fd_max +1; i++){
             if(FD_ISSET(i, &tmpset)){
                 
-                if(i == socket_fd){     // è arrivata una nuova richesta di connessione
+                if( i == socket_fd){     // è arrivata una nuova richesta di connessione
                     int newConnFd;
                     EXIT_ON(newConnFd = accept(socket_fd, NULL, NULL), == -1);
                     FD_SET(newConnFd, &set);
+                    activeClients++;
                     if(newConnFd > fd_max) fd_max = newConnFd;
-                    continue;
                 }
-                else if(i == pipeReadig_fd){  // fd di rotorno dalla pipe
+                else if(i == pipeReadig_fd){  // fd di ritorno dalla pipe
                     int returnedConnFd;
                     EXIT_ON(read(i, &returnedConnFd, sizeof(int)), != sizeof(int));
-                    FD_SET(returnedConnFd, &set);
-                    continue;
+                    if(returnedConnFd == -1) activeClients--;   //un client ha chiuso
+                    else FD_SET(returnedConnFd, &set);
                 }
                 else{   // un client già conesso ha inviato un messaggio
                     SharedQueue_push(ready_clients, i); // verrà gestito da un worker
                     FD_CLR(i, &set);
                     if (i == fd_max) fd_max = updatemax(set, fd_max);
-                    continue;
                 }
             }
         }
     }
-
-
 
 
 
