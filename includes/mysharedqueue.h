@@ -1,8 +1,8 @@
 
-#ifndef _SHARED_QUEUE_H
-#define _SHARED_QUEUE_H
+#ifndef _MY_SHARED_QUEUE_H
+#define _MY_SHARED_QUEUE_H
 
-#include <util.h>
+#include <myutil.h>
 #include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
@@ -25,4 +25,4 @@ void SharedQueue_push(SharedQueue_t * q, int fd_c);
 
 int SharedQueue_pop(SharedQueue_t * q);
 
-#endif /*_SHARED_QUEUE_H */
+#endif /*_MY_SHARED_QUEUE_H */

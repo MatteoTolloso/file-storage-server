@@ -1,10 +1,10 @@
-#ifndef _PARSE_H
-#define _PARSE_H
+#ifndef _MY_PARSE_H
+#define _MY_PARSE_H
 
 #define _POSIX_C_SOURCE 200809L 
 #include <stdlib.h>
 #include <stdio.h>
-#include <util.h>
+#include <myutil.h>
 
 #include <string.h>
 
@@ -25,4 +25,4 @@ per aggiungere un altro parametro:
 
 int parse(char* configpath, char ** socket_name, int * max_num_file, int * max_dim_storage, int * num_thread_worker);
 
-#endif /* _PARSE_H */
+#endif /* _MY_PARSE_H */

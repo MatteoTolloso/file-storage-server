@@ -1,7 +1,7 @@
 
 
-#ifndef _UTIL_H
-#define _UTIL_H
+#ifndef _MY_UTIL_H
+#define _MY_UTIL_H
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -14,4 +14,4 @@
 
 
 
-#endif /*_util.h*/
+#endif /*_MY_UTIL_H*/

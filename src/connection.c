@@ -1,4 +1,4 @@
-#include <connection.h>
+#include <myconnection.h>
 
 int updatemax(fd_set set, int fdmax) {
     for(int i=(fdmax-1);i>=0;--i)

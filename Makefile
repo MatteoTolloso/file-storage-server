@@ -7,8 +7,8 @@ all: server
 
 #linking
 
-server: ./obj/main.o ./obj/parser.o ./obj/sharedqueue.o ./obj/connection.o
-	gcc ./obj/main.o ./obj/parser.o ./obj/sharedqueue.o ./obj/connection.o -o ./server -pthread
+server: ./obj/main.o ./obj/parser.o ./obj/sharedqueue.o ./obj/connection.o ./obj/handler.o
+	gcc ./obj/main.o ./obj/parser.o ./obj/sharedqueue.o ./obj/connection.o ./obj/handler.o -o ./server -pthread
 
 #obj file
 
@@ -23,5 +23,8 @@ server: ./obj/main.o ./obj/parser.o ./obj/sharedqueue.o ./obj/connection.o
 
 ./obj/connection.o: ./src/connection.c
 	gcc ./src/connection.c $(flags) -c -o ./obj/connection.o
+
+./obj/handler.o: ./src/handler.c
+	gcc ./src/handler.c $(flags) -c -o ./obj/handler.o -pthread
 
 # esprimere la dipendanza con gli header

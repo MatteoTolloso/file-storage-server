@@ -1,59 +1,13 @@
 
-#include <parser.h>
-#include <util.h>
-#include <sharedqueue.h>
+#include <myparser.h>
+#include <myutil.h>
+#include <mysharedqueue.h>
+#include <myconnection.h>
+#include <myhandler.h>
 #include <pthread.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/select.h>
-#include <connection.h>
-
-#include <signal.h>
-
-volatile sig_atomic_t endMode = 0;
-
-void ter_handler(int sig){
-
-    if ((sig == SIGINT) || (sig == SIGQUIT)){
-        endMode = 2;
-        return;
-    }
-    if( sig == SIGHUP){
-        endMode = 1;
-        return;
-    }
-
-    EXIT_ON(write(1, "unknown signal", 15), <= 0);
-}
-
-void handler_installer(){
-
-    sigset_t fullmask, handlermask, complementar;
-    sigfillset(&fullmask);
-    sigemptyset(&handlermask);
-    sigfillset(&complementar);
-    EXIT_ON(pthread_sigmask(SIG_SETMASK, &fullmask, NULL), != 0);
-
-    sigaddset(&handlermask, SIGINT);
-    sigaddset(&handlermask, SIGQUIT);
-    sigaddset(&handlermask, SIGHUP);
-    sigdelset(&complementar, SIGINT);
-    sigdelset(&complementar, SIGQUIT);
-    sigdelset(&complementar, SIGHUP);
-    
-    struct sigaction sa;
-    EXIT_ON(memset(&sa, 0, sizeof(struct sigaction)), == NULL);
-    
-    sa.sa_handler = ter_handler;
-    sa.sa_mask = handlermask;
-    EXIT_ON( sigaction(SIGINT, &sa, NULL), != 0);
-    EXIT_ON( sigaction(SIGQUIT, &sa, NULL), != 0);
-    EXIT_ON( sigaction(SIGHUP, &sa, NULL), != 0);
-
-    EXIT_ON(pthread_sigmask(SIG_SETMASK, &complementar, NULL), != 0);
-
-}
-
 
 
 int main(int argc, char ** argv){
@@ -68,7 +22,6 @@ int main(int argc, char ** argv){
 
     /* INIZIO configurazione dei parametri dal file config.txt */
 
-    
     if (argc < 2) EXIT_ON("errore parametri",);
     
     char * sck_name; int max_num_file, max_dim_storage, num_thread_worker;
@@ -101,9 +54,8 @@ int main(int argc, char ** argv){
 
     /* FINE generazione dei thread worker */
 
-    /* INIZIO gestione delle richeste */
 
-    // prima parte da mettere in un file separato 
+    /* INIZIO gestione delle richeste */
     
     int socket_fd = init_server(sck_name);
     int activeClients = 0;
@@ -112,13 +64,15 @@ int main(int argc, char ** argv){
     FD_ZERO(&set);
     FD_SET(socket_fd, &set);
     int fd_max = socket_fd; // attenzione
+    int onceEndmode = 0;
 
    
     while(1){ 
 
-        if(endMode != 0){   // devo terminare
-            FD_CLR(socket_fd, &set);    // non accetta nuove connessioni
+        if((endMode != 0) && (onceEndmode == 0)){   // devo terminare
+            FD_CLR(socket_fd, &set);    
             unlink(sck_name);
+            onceEndmode = 1;
         }
         if(endMode == 2){   // terminazione veloce
             for(int i=0; i<fd_max+1; i++){
@@ -126,13 +80,12 @@ int main(int argc, char ** argv){
             }
             break;
         }
-
-        if((endMode == 1) && (activeClients == 0)) break;
+        if((endMode == 1) && (activeClients == 0)) break;   // terminazione lenta
 
         tmpset = set;
         if( select(fd_max + 1, &tmpset, NULL, NULL, NULL) == -1){ // attenzione all'arrivo del segnale 
             if(errno == EINTR){
-                printf("un segnale ha interrotto la select");
+                printf("un segnale ha interrotto la select\n");
                 continue;
             } 
             else EXIT_ON("errore sconosciuto", == NULL);
@@ -179,10 +132,7 @@ int main(int argc, char ** argv){
     close(pipeReadig_fd);
     close(pipeWriting_fd);
 
-    /* FINE generazione dei thread worker */
-
-
-
+    /* FINE operazioni di chiusura */
 
     return 0;
 
