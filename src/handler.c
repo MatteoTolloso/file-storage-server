@@ -1,13 +1,20 @@
 #include <myhandler.h>
 
 void ter_handler(int sig){
-
+    int n;
     if ((sig == SIGINT) || (sig == SIGQUIT)){
-        endMode = 2;
+        n=2;
+        if(write(pipeSigWriting, &n, sizeof(int)) != sizeof(int)){
+            perror("write");
+        }
+        printf("ho scritto sulla pipe dei segnali");
         return;
     }
     if( sig == SIGHUP){
-        endMode = 1;
+        n=1;
+        if(write(pipeSigWriting, &n, sizeof(int)) != sizeof(int)){
+            perror("write");
+        }
         return;
     }
 

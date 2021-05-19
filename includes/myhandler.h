@@ -7,7 +7,8 @@
 #include <unistd.h>
 #include <string.h>
 
-volatile sig_atomic_t endMode;
+
+int pipeSigWriting;
 
 void ter_handler(int sig);
 

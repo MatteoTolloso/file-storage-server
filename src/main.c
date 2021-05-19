@@ -35,18 +35,22 @@ int main(int argc, char ** argv){
     
     
     
-    /* INIZIO preparazione della coda concorrente e della pipe */
+    /* INIZIO preparazione della coda concorrente e delle pipe */
 
     SharedQueue_t * ready_clients = init_SharedQueue();
 
     int pipefd[2], pipeReadig_fd, pipeWriting_fd;
+    int pipefd2[2], pipeSigReading;
 
     EXIT_ON( pipe(pipefd), != 0);
+    EXIT_ON( pipe(pipefd2), != 0);
 
     pipeReadig_fd = pipefd[0];
     pipeWriting_fd = pipefd[1];
+    pipeSigReading = pipefd2[0];
+    pipeSigWriting = pipefd2[1];
 
-    /* FINE preaprazione della coda concorrente e della pipe */
+    /* FINE preaprazione della coda concorrente e delle pipe */
 
 
     /* INIZIO generazione dei thread worker */
@@ -63,33 +67,38 @@ int main(int argc, char ** argv){
     FD_ZERO(&tmpset);
     FD_ZERO(&set);
     FD_SET(socket_fd, &set);
+    FD_SET(pipeSigReading, &set);
     int fd_max = socket_fd; // attenzione
-    int onceEndmode = 0;
+    int endMode=0;
 
    
-    while(1){ 
-
-        if((endMode != 0) && (onceEndmode == 0)){   // devo terminare
-            FD_CLR(socket_fd, &set);    
-            unlink(sck_name);
-            onceEndmode = 1;
-        }
-        if(endMode == 2){   // terminazione veloce
-            for(int i=0; i<fd_max+1; i++){
-                if(FD_ISSET(i, &set) && (i != pipeReadig_fd)) close(i);
-            }
-            break;
-        }
-        if((endMode == 1) && (activeClients == 0)) break;   // terminazione lenta
+    while(endMode==0 || activeClients > 0){  // finchè non è richiesta la terminazione o ci sono client attivi
 
         tmpset = set;
-        if( select(fd_max + 1, &tmpset, NULL, NULL, NULL) == -1){ // attenzione all'arrivo del segnale 
-            if(errno == EINTR){
-                printf("un segnale ha interrotto la select\n");
-                continue;
-            } 
-            else EXIT_ON("errore sconosciuto", == NULL);
-        }  
+        if( select(fd_max + 1, &tmpset, NULL, NULL, NULL) == -1) // attenzione all'arrivo del segnale
+        { 
+            if(errno == EINTR) printf("un segnale ha interrotto la select\n");
+            else EXIT_ON("errore sconosciuto",);
+        }
+         
+        if(FD_ISSET(pipeSigReading, &tmpset)){  // è arrivato un segnale
+            printf("fd lettore della pipe segnali settato\n");
+            EXIT_ON(read(pipeSigReading, &endMode, sizeof(int)), != sizeof(int));
+            
+            printf("valore arrivato dalla pipe dei segnali: %d\n", endMode);
+
+            if(endMode == 1) FD_CLR(socket_fd, &set);   // terminazione lenta
+                  
+            if(endMode == 2){   // terminazione veloce
+                FD_CLR(socket_fd, &set);
+                for(int i=0; i<fd_max+1; i++){
+                    if(FD_ISSET(i, &set) && (i != pipeReadig_fd)) close(i);
+                }
+                break;
+            }
+            continue;
+        }
+
         for (int i = 0; i< fd_max +1; i++){
             if(FD_ISSET(i, &tmpset)){
                 
@@ -115,14 +124,13 @@ int main(int argc, char ** argv){
         }
     }
 
-
-
     /* FINE gestione delle richieste */
 
 
 
     /* INIZIO operazioni di chiusura */
-
+    
+    unlink(sck_name);
     free(sck_name);
     free(ready_clients->set);
     pthread_mutex_destroy(&ready_clients->lock);
