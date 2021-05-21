@@ -9,17 +9,55 @@
 #include <unistd.h>
 #include <sys/select.h>
 
-/*
-void * worker(SharedQueue_t * q){ // verificare le chiamate pthread
-    int clientFd;
-    clientFd = SharedQueue_pop(q);
-    //printf("ho letto dalla coda l'fd %d\n", clientFd);
-    sleep(2);
+typedef struct _worker_args{
+    SharedQueue_t * q;
+    int pipeWriting_fd;
+    // filesystem;
+}WorkerArgs;
 
-    write(pipeWriting_fd, ); // ritornare alla pipe l'opposto del client quando chiude
+
+void * worker(void * args){
+
+    SharedQueue_t * q = ((WorkerArgs *)(args))->q;
+    int pipeWriting_fd = ((WorkerArgs *)(args))->pipeWriting_fd;
+    
+    while(1){
+        int clientFd = SharedQueue_pop(q); // preleva un client dalla coda condivisa
+        printf("WORKER: ho letto dalla coda l'fd %d\n", clientFd);
+
+        if(clientFd == -1){ // il manager mi dice di terminare
+            // pulizia
+            return 0;
+        }
+
+        int requestType, returnValue;
+        returnValue = read(clientFd, &requestType, sizeof(int)); // leggi il tipo di richiesta che ha inviato il clent (la funzione da eseguire)
+
+        if(returnValue <= 0 ){ // il client ha chiuso
+            clientFd*=-1;
+            EXIT_ON(write(pipeWriting_fd, &clientFd, sizeof(int)), != sizeof(int)); // il manager si occuperà di chiuderlo per evitare racecondition con i fd
+            continue;
+        }
+
+        sleep(2); // simula lavoro (sarà la chiamata di funzione)
+
+        int risultatoEsecuzione = 1; // risultato esecuzione chiamata
+        // se è 1 vuol dire che ho terminato correttamente la richiesta e devo dire al manager di rimettermi in ascolto di quel fd
+        // altrimenti vuol dire che il client ha chiuso inaspettatamente durante le comunicazioni e devo dire al manager di chiudere il fd
+        
+        if (risultatoEsecuzione == 1){
+            EXIT_ON(write(pipeWriting_fd, &clientFd, sizeof(int)), != sizeof(int));
+        }
+        else{
+            clientFd*=-1;
+            EXIT_ON(write(pipeWriting_fd, &clientFd, sizeof(int)), != sizeof(int));
+        }
+
+
+    }
 
 }
-*/
+
 
 int main(int argc, char ** argv){
 
@@ -39,7 +77,7 @@ int main(int argc, char ** argv){
 
     parse(argv[1], &sck_name,  &max_num_file,  &max_dim_storage,  &num_thread_worker);
 
-    printf("socket name:%s\nmax_num_file:%d\nmax_dim_storage:%d\nnum_thread_worker:%d\n", 
+    printf("MANAGER:\nsocket name:%s\nmax_num_file:%d\nmax_dim_storage:%d\nnum_thread_worker:%d\n", 
             sck_name, max_num_file, max_dim_storage, num_thread_worker);
     
     /* FINE configurazione dei parametri dal file config.txt */
@@ -66,6 +104,18 @@ int main(int argc, char ** argv){
 
     /* INIZIO generazione dei thread worker */
     
+    pthread_t * tidArr;
+    EXIT_ON( tidArr = malloc(sizeof(pthread_t) * num_thread_worker), == NULL);
+    WorkerArgs * args;
+    EXIT_ON(args = malloc(sizeof(WorkerArgs)), == NULL);
+    
+    args->pipeWriting_fd = pipeWriting_fd;
+    args->q = ready_clients;
+
+    for(int i=0; i<num_thread_worker; ++i){
+	    EXIT_ON(pthread_create(&tidArr[i], NULL, worker, (void*)args), != 0);
+    }
+	
 
     /* FINE generazione dei thread worker */
 
@@ -87,15 +137,14 @@ int main(int argc, char ** argv){
         tmpset = set;
         if( select(fd_max + 1, &tmpset, NULL, NULL, NULL) == -1) // attenzione all'arrivo del segnale
         { 
-            if(errno == EINTR) printf("un segnale ha interrotto la select\n");
+            if(errno == EINTR) printf("MANAGER: un segnale ha interrotto la select\n");
             else EXIT_ON("errore sconosciuto",);
         }
          
         if(FD_ISSET(pipeSigReading, &tmpset)){  // è arrivato un segnale
-            printf("fd lettore della pipe segnali settato\n");
             EXIT_ON(read(pipeSigReading, &endMode, sizeof(int)), != sizeof(int));
             
-            printf("valore arrivato dalla pipe dei segnali: %d\n", endMode);
+            printf("MANAGER: valore arrivato dalla pipe dei segnali: %d\n", endMode);
 
             if(endMode == 1) FD_CLR(socket_fd, &set);   // terminazione lenta, non ascolto più il socket
                   
@@ -160,14 +209,35 @@ int main(int argc, char ** argv){
         }
     }
 
+    fprintf(stderr, "MANAGER: uscito dal ciclo di gestione\n");
+
     /* FINE gestione delle richieste */
 
 
 
-    /* INIZIO operazioni di chiusura */
+    /* INIZIO chiusura thread */
+
+    for (int i=0; i<num_thread_worker; i++){
+        SharedQueue_push(ready_clients, -1);
+    }
+
+    for (int i= 0; i< num_thread_worker; i++){
+        EXIT_ON(pthread_join(tidArr[i], NULL), == -1);
+    }
     
+    /* FINE chiusura thread */
+    
+    
+
+    /* INIZIO operazioni di chiusura */
+    close(pipeReadig_fd);
+    close(pipeWriting_fd);
+    close(pipeSigReading);
+    close(pipeSigWriting);
     unlink(sck_name);
     free(sck_name);
+    free(tidArr);
+    free(args);
     free(ready_clients->set);
     pthread_mutex_destroy(&ready_clients->lock);
     pthread_cond_destroy(&ready_clients->full);

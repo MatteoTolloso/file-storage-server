@@ -62,6 +62,7 @@ int parse(char* configpath, char ** socket_name, int * max_num_file, int * max_d
     if(feof(fptr)){    // uscito perchè fine del file 
         free(key);
         free(value);
+        fclose(fptr);
         #ifdef DEBUG
         printf("parsing terminato correttamente\n");
         #endif

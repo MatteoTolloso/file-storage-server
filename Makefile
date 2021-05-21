@@ -13,7 +13,7 @@ objpath = ./obj/
 
 srcpath = ./src/
 
-.PHONY: clean
+.PHONY: clean test
 
 #all 
 
@@ -38,8 +38,11 @@ $(objpath)sharedqueue.o: $(srcpath)sharedqueue.c $(includes)
 $(objpath)connection.o: $(srcpath)connection.c $(includes)
 	gcc $< $(flags) -c -o $@
 
-$(objpath).o: $(srcpath)handler.c $(includes)
+$(objpath)handler.o: $(srcpath)handler.c $(includes)
 	gcc $< $(flags) -c -o $@ -pthread
 
 cleanall	: 
 	rm -f $(obj) ./server
+
+test	:
+	valgrind --leak-check=full --show-leak-kinds=all ./server config.txt 
