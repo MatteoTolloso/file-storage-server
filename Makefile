@@ -1,30 +1,45 @@
 
 flags = -g -O3 -Wall -I ./includes -std=c99 -pedantic #-Werror
 
+obj = ./obj/main.o ./obj/parser.o ./obj/sharedqueue.o ./obj/connection.o ./obj/handler.o
+
+src = ./src/main.c ./src/parser.c ./src/sharedqueue.c ./src/connection.c ./src/handler.c
+
+includes = ./includes/myconnection.h ./includes/myhandler.h \
+			./includes/myparser.h ./includes/mysharedqueue.h \
+			./includes/myutil.h
+
+objpath = ./obj/
+
+srcpath = ./src/
+
+.PHONY: clean
+
 #all 
 
 all: server
 
 #linking
 
-server: ./obj/main.o ./obj/parser.o ./obj/sharedqueue.o ./obj/connection.o ./obj/handler.o
-	gcc ./obj/main.o ./obj/parser.o ./obj/sharedqueue.o ./obj/connection.o ./obj/handler.o -o ./server -pthread
+./server: $(obj)
+	gcc $(obj) -o $@ -pthread
 
 #obj file
 
-./obj/main.o: ./src/main.c
-	gcc ./src/main.c $(flags) -c -o ./obj/main.o
+$(objpath)main.o: $(srcpath)main.c $(includes)
+	gcc $< $(flags) -c -o $@
 
-./obj/parser.o: ./src/parser.c
-	gcc ./src/parser.c $(flags) -c -o ./obj/parser.o
+$(objpath)parser.o: $(srcpath)parser.c $(includes)
+	gcc $< $(flags) -c -o $@
 
-./obj/sharedqueue.o: ./src/sharedqueue.c
-	gcc ./src/sharedqueue.c $(flags) -c -o ./obj/sharedqueue.o
+$(objpath)sharedqueue.o: $(srcpath)sharedqueue.c $(includes)
+	gcc $< $(flags) -c -o $@
 
-./obj/connection.o: ./src/connection.c
-	gcc ./src/connection.c $(flags) -c -o ./obj/connection.o
+$(objpath)connection.o: $(srcpath)connection.c $(includes)
+	gcc $< $(flags) -c -o $@
 
-./obj/handler.o: ./src/handler.c
-	gcc ./src/handler.c $(flags) -c -o ./obj/handler.o -pthread
+$(objpath).o: $(srcpath)handler.c $(includes)
+	gcc $< $(flags) -c -o $@ -pthread
 
-# esprimere la dipendanza con gli header
+cleanall	: 
+	rm -f $(obj) ./server

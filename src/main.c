@@ -9,6 +9,17 @@
 #include <unistd.h>
 #include <sys/select.h>
 
+/*
+void * worker(SharedQueue_t * q){ // verificare le chiamate pthread
+    int clientFd;
+    clientFd = SharedQueue_pop(q);
+    //printf("ho letto dalla coda l'fd %d\n", clientFd);
+    sleep(2);
+
+    write(pipeWriting_fd, ); // ritornare alla pipe l'opposto del client quando chiude
+
+}
+*/
 
 int main(int argc, char ** argv){
 
@@ -71,7 +82,6 @@ int main(int argc, char ** argv){
     int fd_max = socket_fd; // attenzione
     int endMode=0;
 
-   
     while(endMode==0 || activeClients > 0){  // finchè non è richiesta la terminazione o ci sono client attivi
 
         tmpset = set;
@@ -87,14 +97,16 @@ int main(int argc, char ** argv){
             
             printf("valore arrivato dalla pipe dei segnali: %d\n", endMode);
 
-            if(endMode == 1) FD_CLR(socket_fd, &set);   // terminazione lenta
+            if(endMode == 1) FD_CLR(socket_fd, &set);   // terminazione lenta, non ascolto più il socket
                   
             if(endMode == 2){   // terminazione veloce
-                FD_CLR(socket_fd, &set);
-                for(int i=0; i<fd_max+1; i++){
-                    if(FD_ISSET(i, &set) && (i != pipeReadig_fd)) close(i);
+                FD_ZERO(&set);
+                FD_SET(pipeReadig_fd, &set);    
+                // ascolto solo la pipe che torna i fd per essere sicuro che tutte le richieste in corso terminino
+
+                for(int i=0; i<fd_max+1; i++){  // chiudo i client connessi (ma che non hanno richieste in corso)
+                    if(FD_ISSET(i, &set) && (i != pipeReadig_fd) && (i != socket_fd)) close(i);
                 }
-                break;
             }
             continue;
         }
@@ -112,13 +124,37 @@ int main(int argc, char ** argv){
                 else if(i == pipeReadig_fd){  // fd di ritorno dalla pipe
                     int returnedConnFd;
                     EXIT_ON(read(i, &returnedConnFd, sizeof(int)), != sizeof(int));
-                    if(returnedConnFd == -1) activeClients--;   //un client ha chiuso
-                    else FD_SET(returnedConnFd, &set);
+                    
+                    if ((endMode == 0) || (endMode == 1)){  // devo continuare a servire i client connessi
+                        if(returnedConnFd < 0){ //il client ha chiuso
+                            activeClients--;   
+                            close(-1 * returnedConnFd);
+                        }
+                        else{   // il client ha terminato la richiesta correttamente
+                            FD_SET(returnedConnFd, &set); // lo rimetto in ascolto
+                        }
+                    }
+                    else{   // sto terminando velocemente
+                        if(returnedConnFd < 0){ //il client ha chiuso
+                            activeClients--;   
+                            close(-1 * returnedConnFd);
+                        }
+                        else{   // il client ha terminato la richiesta correttamente
+                            activeClients--;   
+                            close(returnedConnFd);                        
+                        }
+                    } 
                 }
-                else{   // un client già conesso ha inviato un messaggio
-                    SharedQueue_push(ready_clients, i); // verrà gestito da un worker
-                    FD_CLR(i, &set);
-                    if (i == fd_max) fd_max = updatemax(set, fd_max);
+                else{   // un client già conesso ha inviato una richiesta (oppure ha chiuso)
+                    if (endMode != 2){
+                        SharedQueue_push(ready_clients, i); // verrà gestito da un worker
+                        FD_CLR(i, &set);
+                        if (i == fd_max) fd_max = updatemax(set, fd_max);
+                    }
+                    else{
+                        close(i);
+                        activeClients--;
+                    }
                 }
             }
         }
