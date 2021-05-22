@@ -46,6 +46,8 @@ void handler_installer(){
     EXIT_ON( sigaction(SIGQUIT, &sa, NULL), != 0);
     EXIT_ON( sigaction(SIGHUP, &sa, NULL), != 0);
 
+    sigemptyset(&complementar); // da rimuovere
     EXIT_ON(pthread_sigmask(SIG_SETMASK, &complementar, NULL), != 0);
+
 
 }

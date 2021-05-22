@@ -15,4 +15,6 @@ int updatemax(fd_set set, int fdmax);
 
 int init_server(char * sck_name);
 
+int find_max(int a, int b , int c, int d, int e);
+
 #endif /* _MY_CONNECTION_H */

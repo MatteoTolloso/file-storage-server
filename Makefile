@@ -1,9 +1,9 @@
 
 flags = -g -O3 -Wall -I ./includes -std=c99 -pedantic #-Werror
 
-obj = ./obj/main.o ./obj/parser.o ./obj/sharedqueue.o ./obj/connection.o ./obj/handler.o
+obj = ./obj/server.o ./obj/parser.o ./obj/sharedqueue.o ./obj/connection.o ./obj/handler.o
 
-src = ./src/main.c ./src/parser.c ./src/sharedqueue.c ./src/connection.c ./src/handler.c
+src = ./src/server.c ./src/parser.c ./src/sharedqueue.c ./src/connection.c ./src/handler.c
 
 includes = ./includes/myconnection.h ./includes/myhandler.h \
 			./includes/myparser.h ./includes/mysharedqueue.h \
@@ -26,7 +26,7 @@ all: server
 
 #obj file
 
-$(objpath)main.o: $(srcpath)main.c $(includes)
+$(objpath)server.o: $(srcpath)server.c $(includes)
 	gcc $< $(flags) -c -o $@
 
 $(objpath)parser.o: $(srcpath)parser.c $(includes)

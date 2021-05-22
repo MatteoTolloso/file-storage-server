@@ -1,7 +1,7 @@
 #include <myconnection.h>
 
 int updatemax(fd_set set, int fdmax) {
-    for(int i=(fdmax-1);i>=0;--i)
+    for(int i=(fdmax);i>=0;--i)
 	if (FD_ISSET(i, &set)) return i;
     EXIT_ON("error in updatemax", == NULL);
     return -1;
@@ -19,4 +19,15 @@ int init_server(char * sck_name){
     EXIT_ON(bind(socket_fd, (struct sockaddr *)&server_addr, sizeof(struct sockaddr_un)), != 0);
     EXIT_ON(listen(socket_fd, MAX_CONNECTION_QUEUE), != 0);
     return socket_fd; 
+}
+
+int find_max(int a, int b , int c, int d, int e){
+    int max = 0;
+    if(a>max) max = a;
+    if(b>max) max = b;
+    if(c>max) max = c;
+    if(d>max) max = d;
+    if(e>max) max = e;
+    return max;
+
 }

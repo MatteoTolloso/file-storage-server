@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/select.h>
+#include <sys/time.h>
 
 typedef struct _worker_args{
     SharedQueue_t * q;
@@ -17,12 +18,17 @@ typedef struct _worker_args{
 
 
 void * worker(void * args){
+    sigset_t fullmask;
+    sigfillset(&fullmask);
+    EXIT_ON(pthread_sigmask(SIG_SETMASK, &fullmask, NULL), != 0);
 
     SharedQueue_t * q = ((WorkerArgs *)(args))->q;
     int pipeWriting_fd = ((WorkerArgs *)(args))->pipeWriting_fd;
     
     while(1){
+        
         int clientFd = SharedQueue_pop(q); // preleva un client dalla coda condivisa
+        
         printf("WORKER: ho letto dalla coda l'fd %d\n", clientFd);
 
         if(clientFd == -1){ // il manager mi dice di terminare
@@ -34,28 +40,29 @@ void * worker(void * args){
         returnValue = read(clientFd, &requestType, sizeof(int)); // leggi il tipo di richiesta che ha inviato il clent (la funzione da eseguire)
 
         if(returnValue <= 0 ){ // il client ha chiuso
+            fprintf(stderr, "WORKER: il client %d ha chiuso\n", clientFd);
             clientFd*=-1;
             EXIT_ON(write(pipeWriting_fd, &clientFd, sizeof(int)), != sizeof(int)); // il manager si occuperà di chiuderlo per evitare racecondition con i fd
             continue;
         }
 
-        sleep(2); // simula lavoro (sarà la chiamata di funzione)
+        fprintf(stderr, "WORKER: tipo di richiesta letta dal fd %d: %d\n", clientFd, requestType);
+
+        //sleep(2); // simula lavoro (sarà la chiamata di funzione)
 
         int risultatoEsecuzione = 1; // risultato esecuzione chiamata
         // se è 1 vuol dire che ho terminato correttamente la richiesta e devo dire al manager di rimettermi in ascolto di quel fd
         // altrimenti vuol dire che il client ha chiuso inaspettatamente durante le comunicazioni e devo dire al manager di chiudere il fd
         
         if (risultatoEsecuzione == 1){
+            fprintf(stderr, "WORKER: richiesta completa, metto il client %d nella pipe\n", clientFd);
             EXIT_ON(write(pipeWriting_fd, &clientFd, sizeof(int)), != sizeof(int));
         }
         else{
             clientFd*=-1;
             EXIT_ON(write(pipeWriting_fd, &clientFd, sizeof(int)), != sizeof(int));
         }
-
-
     }
-
 }
 
 
@@ -129,26 +136,31 @@ int main(int argc, char ** argv){
     FD_ZERO(&set);
     FD_SET(socket_fd, &set);
     FD_SET(pipeSigReading, &set);
-    int fd_max = socket_fd; // attenzione
+    FD_SET(pipeReadig_fd, &set);
+    int fd_max = find_max(socket_fd, pipeReadig_fd, pipeWriting_fd, pipeSigReading, pipeSigWriting);
+    fd_max++; // per sicurezza, perchè c'è anche da considerare il fd del file config
     int endMode=0;
+    struct timeval tv;
 
     while(endMode==0 || activeClients > 0){  // finchè non è richiesta la terminazione o ci sono client attivi
-
+        fprintf(stderr, "\nendMode = %d, activeClients = %d, fd_max = %d\n", endMode, activeClients, fd_max);
         tmpset = set;
+        tv.tv_sec = 1;
+        tv.tv_usec = 0;
         if( select(fd_max + 1, &tmpset, NULL, NULL, NULL) == -1) // attenzione all'arrivo del segnale
         { 
-            if(errno == EINTR) printf("MANAGER: un segnale ha interrotto la select\n");
+            if(errno == EINTR) fprintf(stderr, "MANAGER: un segnale ha interrotto la select\n");
             else EXIT_ON("errore sconosciuto",);
         }
          
         if(FD_ISSET(pipeSigReading, &tmpset)){  // è arrivato un segnale
             EXIT_ON(read(pipeSigReading, &endMode, sizeof(int)), != sizeof(int));
             
-            printf("MANAGER: valore arrivato dalla pipe dei segnali: %d\n", endMode);
+            fprintf(stderr, "MANAGER: valore arrivato dalla pipe dei segnali: %d\n", endMode);
 
             if(endMode == 1) FD_CLR(socket_fd, &set);   // terminazione lenta, non ascolto più il socket
                   
-            if(endMode == 2){   // terminazione veloce
+            if(endMode == 2){   // terminazione veloce // NON VA BENE 
                 FD_ZERO(&set);
                 FD_SET(pipeReadig_fd, &set);    
                 // ascolto solo la pipe che torna i fd per essere sicuro che tutte le richieste in corso terminino
@@ -169,18 +181,26 @@ int main(int argc, char ** argv){
                     FD_SET(newConnFd, &set);
                     activeClients++;
                     if(newConnFd > fd_max) fd_max = newConnFd;
+                    fprintf(stderr, "MANAGER: nuova connessione con fd: %d\n", newConnFd);
                 }
                 else if(i == pipeReadig_fd){  // fd di ritorno dalla pipe
+                    fprintf(stderr, "MANAGER: qualcosa dalla pipe\n");
                     int returnedConnFd;
-                    EXIT_ON(read(i, &returnedConnFd, sizeof(int)), != sizeof(int));
+                    EXIT_ON(read(pipeReadig_fd, &returnedConnFd, sizeof(int)), != sizeof(int));
                     
                     if ((endMode == 0) || (endMode == 1)){  // devo continuare a servire i client connessi
                         if(returnedConnFd < 0){ //il client ha chiuso
-                            activeClients--;   
-                            close(-1 * returnedConnFd);
+                            activeClients--;
+                            returnedConnFd*=-1;   
+                            close(returnedConnFd);
+                            fprintf(stderr, "MANAGER: chiuso il clent con fd: %d\n", returnedConnFd);
+
                         }
                         else{   // il client ha terminato la richiesta correttamente
                             FD_SET(returnedConnFd, &set); // lo rimetto in ascolto
+                            fd_max = updatemax(set, returnedConnFd);
+                            fprintf(stderr, "MANAGER: rimesso in ascolto del clent con fd: %d\n", returnedConnFd);
+
                         }
                     }
                     else{   // sto terminando velocemente
@@ -198,7 +218,10 @@ int main(int argc, char ** argv){
                     if (endMode != 2){
                         SharedQueue_push(ready_clients, i); // verrà gestito da un worker
                         FD_CLR(i, &set);
+                        FD_CLR(i, &tmpset);
                         if (i == fd_max) fd_max = updatemax(set, fd_max);
+                        fprintf(stderr, "MANAGER: metto nella coda il client con fd: %d\n", i);
+
                     }
                     else{
                         close(i);

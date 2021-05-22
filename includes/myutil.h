@@ -13,5 +13,4 @@
     }
 
 
-
 #endif /*_MY_UTIL_H*/

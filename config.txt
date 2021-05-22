@@ -1,4 +1,4 @@
 socket_name=./mysock;
-num_thread_worker=2;
+num_thread_worker=1;
 max_dim_storage=5;
 max_num_file=10;
