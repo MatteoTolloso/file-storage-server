@@ -122,7 +122,6 @@ int main(int argc, char ** argv){
     for(int i=0; i<num_thread_worker; ++i){
 	    EXIT_ON(pthread_create(&tidArr[i], NULL, worker, (void*)args), != 0);
     }
-	
 
     /* FINE generazione dei thread worker */
 
@@ -140,13 +139,10 @@ int main(int argc, char ** argv){
     int fd_max = find_max(socket_fd, pipeReadig_fd, pipeWriting_fd, pipeSigReading, pipeSigWriting);
     fd_max++; // per sicurezza, perchè c'è anche da considerare il fd del file config
     int endMode=0;
-    struct timeval tv;
 
     while(endMode==0 || activeClients > 0){  // finchè non è richiesta la terminazione o ci sono client attivi
         fprintf(stderr, "\nendMode = %d, activeClients = %d, fd_max = %d\n", endMode, activeClients, fd_max);
         tmpset = set;
-        tv.tv_sec = 1;
-        tv.tv_usec = 0;
         if( select(fd_max + 1, &tmpset, NULL, NULL, NULL) == -1) // attenzione all'arrivo del segnale
         { 
             if(errno == EINTR) fprintf(stderr, "MANAGER: un segnale ha interrotto la select\n");
