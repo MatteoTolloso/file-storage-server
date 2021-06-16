@@ -27,6 +27,6 @@ int main(int argc, char ** argv){
     write(socketfd, &n, sizeof(int));
     sleep(3);
 
-    close(socketfd);
+    close(socketfd); // test
 
 }
