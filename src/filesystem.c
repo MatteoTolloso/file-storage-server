@@ -18,7 +18,7 @@ typedef struct _file{
     pthread_cond_t f_go;    //sospensione sia dei lettori che degli scrittori
     int f_activeReaders;
     int f_activeWriters;
-
+    int f_queueSize;
 }File_t;
 
 typedef struct _fs{
@@ -33,45 +33,61 @@ typedef struct _fs{
 
 }Filesystem_t;
 
-void file_system_init(){
+void fs_init(){
+    // inizializza le variabili del fs
+    // per ogni file inizializza le variabili
 
+}
 
+void f_init(File_t * file){
+    file->path = NULL;
+    file->size = 0;
+    file->cont = NULL;
+    file->prev = NULL;
+    file->next = NULL;
+    file->f_activeReaders = 0;
+    file->f_activeWriters = 0;
+    file->f_queueSize = 0;
+    EXIT_ON(pthread_mutex_init(&file->f_mutex, NULL), != 0);
+    EXIT_ON(pthread_mutex_init(&file->f_order, NULL), != 0);
+    EXIT_ON(pthread_cond_init(&file->f_go, NULL), != 0);
 }
 
 void f_startRead(File_t * file){
     EXIT_ON(pthread_mutex_lock(&file->f_order), != 0); // sono in fila
     EXIT_ON(pthread_mutex_lock(&file->f_mutex), != 0 ); // sono in sezione critica
-    while(f_activeWriters > 0){     // se ci sono scrittori attivi mi sospendo (ma mantenfo il posto in fila)
+    while(file->f_activeWriters > 0){     // se ci sono scrittori attivi mi sospendo (ma mantengo il posto in fila)
         EXIT_ON(pthread_cond_wait(&file->f_go, &file->f_mutex), != 0 );
     }
-    f_activeReaders++;
+    file->f_activeReaders++;
+    file->f_queueSize--;
     EXIT_ON(ptherad_mutex_unlock(&file->f_order), != 0); // rilascio il posto in fila
     EXIT_ON(pthread_mutex_unlock(&file->f_mutex), != 0); // rilascio la mutex
 }
 
 void f_doneRead(File_t * file){
     EXIT_ON(pthread_mutex_lock(&file->f_mutex), != 0);
-    f_activeReaders--;
-    if(f_activeReaders == 0){
-        EXIT_ON( pthread_cond_signal(&file->f_go), != 0);   // faccio entrare il prossimo in fila (se non ci sono lettori attivi è inutile)
+    file->f_activeReaders--;
+    if(file->f_activeReaders == 0){
+        EXIT_ON( pthread_cond_signal(&file->f_go), != 0);   // faccio entrare il prossimo in fila (se ci sono lettori attivi è inutile)
     }
-    EXIT_ON( pthread_muttex_unlock(&file->f_mutex), != 0);
+    EXIT_ON( pthread_mutex_unlock(&file->f_mutex), != 0);
 }
 
 void f_startWrite(File_t * file){
     EXIT_ON(pthread_mutex_lock(&file->f_order), != 0); // sono in fila
     EXIT_ON(pthread_mutex_lock(&file->f_mutex), != 0 ); // sono in sezione critica
-    while(f_activeReaders > 0 || f_activeWriters > 0){     // se ci sono scrittori o lettori attivi mi sospendo (ma mantenfo il posto in fila)
+    while(file->f_activeReaders > 0 || file->f_activeWriters > 0){     // se ci sono scrittori o lettori attivi mi sospendo (ma mantenfo il posto in fila)
         EXIT_ON(pthread_cond_wait(&file->f_go, &file->f_mutex), != 0 );
     }
-    f_activeWritesr++;
+    file->f_activeWriters++;
     EXIT_ON(ptherad_mutex_unlock(&file->f_order), != 0); // rilascio il posto in fila
     EXIT_ON(pthread_mutex_unlock(&file->f_mutex), != 0); // rilascio la mutex
 }
 
 void f_doneWrite(File_t * file){
     EXIT_ON(pthread_mutex_lock(&file->f_mutex), != 0);
-    f_activeWriters--;
+    file->f_activeWriters--;
     EXIT_ON( pthread_cond_signal(&file->f_go), != 0);
-    EXIT_ON( pthread_muttex_unlock(&file->f_mutex), != 0);
+    EXIT_ON( pthread_mutex_unlock(&file->f_mutex), != 0);
 }
