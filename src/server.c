@@ -104,7 +104,7 @@ int main(int argc, char ** argv){
     pipeReadig_fd = pipefd[0];
     pipeWriting_fd = pipefd[1];
     pipeSigReading = pipefd2[0];
-    pipeSigWriting = pipefd2[1];
+    pipeSigWriting = pipefd2[1];    // dichiarata come globale in myhandler.h
 
     /* FINE preaprazione della coda concorrente e delle pipe */
 
