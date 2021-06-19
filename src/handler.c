@@ -1,5 +1,7 @@
 #include <myhandler.h>
 
+
+
 void ter_handler(int sig){
     int n;
     if ((sig == SIGINT) || (sig == SIGQUIT)){

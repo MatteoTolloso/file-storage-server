@@ -8,7 +8,7 @@
 #include <string.h>
 
 
-int pipeSigWriting;
+extern int pipeSigWriting;
 
 void ter_handler(int sig);
 

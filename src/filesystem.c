@@ -1,41 +1,61 @@
-// todo filesistem.h
 
-#include <stdio.h>
-#include <pthread.h>
-#include <string.h>
-#include <myutil.h>
-
-typedef struct _file{
-    char* path;
-    int size;
-    void * cont; //contenuto del file 
-
-    File_t * prev;
-    File_t * next;
-
-    pthread_mutex_t f_mutex; //accesso in mutua esclusione alle variabili condivise
-    pthread_mutex_t f_order; //utilizzata per regolare l'accesso fair
-    pthread_cond_t f_go;    //sospensione sia dei lettori che degli scrittori
-    int f_activeReaders;
-    int f_activeWriters;
-    int f_queueSize;
-}File_t;
-
-typedef struct _fs{
-    int numberOfFile;
-    int maxSize;
-    int maxNumFile;
-    pthread_mutex_t fs_lock;
-    pthread_cond_t fs_cond; // qualsiasi operazione che modifica 
-
-    File_t * firstFile;
-    File_t * lastFile;
-
-}Filesystem_t;
+#include <myfilesystem.h>
 
 void fs_init(){
     // inizializza le variabili del fs
     // per ogni file inizializza le variabili
+
+}
+
+int fs_request_manager(int clientFd, int requestType){
+
+    int retVal = 0;
+
+    switch (requestType){
+        case OPEN_F:
+
+        break;
+
+        case READ_F:
+
+        break;
+
+        case READ_N_F:
+
+        break;
+
+        case WRITE_F:
+
+        break;
+
+        case APPEND_T_F:
+
+        break;
+
+        case LOCK_F:
+
+        break;
+
+        case UNLOCK_F:
+
+        break;
+
+        case CLOSE_F:
+
+        break;
+
+        case REMOVE_F:
+
+        break;
+
+        default:
+            fprintf(stderr, "Richesta non disponibile\n");
+            retVal = 1;
+        break;
+
+    }
+
+    return retVal;
 
 }
 
@@ -61,7 +81,7 @@ void f_startRead(File_t * file){
     }
     file->f_activeReaders++;
     file->f_queueSize--;
-    EXIT_ON(ptherad_mutex_unlock(&file->f_order), != 0); // rilascio il posto in fila
+    EXIT_ON(pthread_mutex_unlock(&file->f_order), != 0); // rilascio il posto in fila
     EXIT_ON(pthread_mutex_unlock(&file->f_mutex), != 0); // rilascio la mutex
 }
 
@@ -81,7 +101,7 @@ void f_startWrite(File_t * file){
         EXIT_ON(pthread_cond_wait(&file->f_go, &file->f_mutex), != 0 );
     }
     file->f_activeWriters++;
-    EXIT_ON(ptherad_mutex_unlock(&file->f_order), != 0); // rilascio il posto in fila
+    EXIT_ON(pthread_mutex_unlock(&file->f_order), != 0); // rilascio il posto in fila
     EXIT_ON(pthread_mutex_unlock(&file->f_mutex), != 0); // rilascio la mutex
 }
 
@@ -91,3 +111,5 @@ void f_doneWrite(File_t * file){
     EXIT_ON( pthread_cond_signal(&file->f_go), != 0);
     EXIT_ON( pthread_mutex_unlock(&file->f_mutex), != 0);
 }
+
+

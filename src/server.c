@@ -9,6 +9,9 @@
 #include <unistd.h>
 #include <sys/select.h>
 #include <sys/time.h>
+#include <myfilesystem.h>
+
+int pipeSigWriting; // from myconenction.h
 
 typedef struct _worker_args{
     SharedQueue_t * q;
