@@ -20,7 +20,7 @@ typedef struct _worker_args{
 void * worker(void * args){
     sigset_t fullmask;
     sigfillset(&fullmask);
-    EXIT_ON(pthread_sigmask(SIG_SETMASK, &fullmask, NULL), != 0);
+    //EXIT_ON(pthread_sigmask(SIG_SETMASK, &fullmask, NULL), != 0); // creare una maschera apposita per i thread
 
     SharedQueue_t * q = ((WorkerArgs *)(args))->q;
     int pipeWriting_fd = ((WorkerArgs *)(args))->pipeWriting_fd;
@@ -36,10 +36,9 @@ void * worker(void * args){
             return 0;
         }
 
-        int requestType, returnValue;
-        returnValue = read(clientFd, &requestType, sizeof(int)); // leggi il tipo di richiesta che ha inviato il clent (la funzione da eseguire)
+        int requestType;
 
-        if(returnValue <= 0 ){ // il client ha chiuso
+        if(read(clientFd, &requestType, sizeof(int)) <= 0 ){ // leggi la richesta oppure il client ha chiuso
             fprintf(stderr, "WORKER: il client %d ha chiuso\n", clientFd);
             clientFd*=-1;
             EXIT_ON(write(pipeWriting_fd, &clientFd, sizeof(int)), != sizeof(int)); // il manager si occuperà di chiuderlo per evitare racecondition con i fd
@@ -48,13 +47,12 @@ void * worker(void * args){
 
         fprintf(stderr, "WORKER: tipo di richiesta letta dal fd %d: %d\n", clientFd, requestType);
 
-        //sleep(2); // simula lavoro (sarà la chiamata di funzione)
+        int result = fs_request_manager(clientFd, requestType);
 
-        int risultatoEsecuzione = 1; // risultato esecuzione chiamata
         // se è 1 vuol dire che ho terminato correttamente la richiesta e devo dire al manager di rimettermi in ascolto di quel fd
         // altrimenti vuol dire che il client ha chiuso inaspettatamente durante le comunicazioni e devo dire al manager di chiudere il fd
         
-        if (risultatoEsecuzione == 1){
+        if (result == 1){
             fprintf(stderr, "WORKER: richiesta completa, metto il client %d nella pipe\n", clientFd);
             EXIT_ON(write(pipeWriting_fd, &clientFd, sizeof(int)), != sizeof(int));
         }
