@@ -1,9 +1,10 @@
-#ifndef _FILESYSTEM_H
-#define _FILESYSTEM_H
+#ifndef _MYFILESYSTEM_H
+#define _MYFILESYSTEM_H
 #include <stdio.h>
 #include <pthread.h>
 #include <string.h>
 #include <myutil.h>
+#include <mylinkedlist.h>
 
 #define OPEN_F 1
 #define READ_F 2
@@ -50,4 +51,4 @@ int fs_request_manager(int clientFd, int requestType);
 
 
 
-#endif /* _FILESYSTEM_H */
+#endif /* _MYFILESYSTEM_H */
