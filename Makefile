@@ -18,14 +18,17 @@ srcpath = ./src/
 
 #all 
 
-all: server
+all: ./server ./client
 
 #linking
 
 ./server: $(obj)
 	gcc $(obj) -o $@ -pthread
 
-#obj file
+./client: ./obj/client.o
+	gcc $< -o $@ -pthread
+
+#obj file for server
 
 $(objpath)server.o: $(srcpath)server.c $(includes)
 	gcc $< $(flags) -c -o $@
@@ -48,6 +51,10 @@ $(objpath)filesystem.o: $(srcpath)filesystem.c $(includes)
 $(objpath)linkedlist.o: $(srcpath)linkedlist.c $(includes)
 	gcc $< $(flags) -c -o $@ -pthread
 
+#obj file for client
+
+./obj/client.o: ./src/client.c
+	gcc $< $(flags) -c -o $@ 
 
 cleanall	: 
 	rm -f $(obj) ./server

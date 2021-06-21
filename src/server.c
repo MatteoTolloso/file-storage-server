@@ -16,7 +16,7 @@ int pipeSigWriting; // from myconenction.h
 typedef struct _worker_args{
     SharedQueue_t * q;
     int pipeWriting_fd;
-    // filesystem;
+    Filesystem_t * fs;
 }WorkerArgs;
 
 
@@ -27,6 +27,7 @@ void * worker(void * args){
 
     SharedQueue_t * q = ((WorkerArgs *)(args))->q;
     int pipeWriting_fd = ((WorkerArgs *)(args))->pipeWriting_fd;
+    Filesystem_t * fs = ((WorkerArgs *)(args))->fs;
     
     while(1){
         
@@ -50,12 +51,12 @@ void * worker(void * args){
 
         fprintf(stderr, "WORKER: tipo di richiesta letta dal fd %d: %d\n", clientFd, requestType);
 
-        int result = fs_request_manager(clientFd, requestType);
+        int result = fs_request_manager(fs, clientFd, requestType);
 
-        // se è 1 vuol dire che ho terminato correttamente la richiesta e devo dire al manager di rimettermi in ascolto di quel fd
+        // se è 0 vuol dire che ho terminato correttamente la richiesta e devo dire al manager di rimettermi in ascolto di quel fd
         // altrimenti vuol dire che il client ha chiuso inaspettatamente durante le comunicazioni e devo dire al manager di chiudere il fd
         
-        if (result == 1){
+        if (result == 0){
             fprintf(stderr, "WORKER: richiesta completa, metto il client %d nella pipe\n", clientFd);
             EXIT_ON(write(pipeWriting_fd, &clientFd, sizeof(int)), != sizeof(int));
         }
@@ -92,7 +93,7 @@ int main(int argc, char ** argv){
     
     
     
-    /* INIZIO preparazione della coda concorrente e delle pipe */
+    /* INIZIO preparazione della coda concorrente, della pipe e del fs */
 
     SharedQueue_t * ready_clients = init_SharedQueue();
 
@@ -107,7 +108,9 @@ int main(int argc, char ** argv){
     pipeSigReading = pipefd2[0];
     pipeSigWriting = pipefd2[1];    // dichiarata come globale in myhandler.h
 
-    /* FINE preaprazione della coda concorrente e delle pipe */
+    Filesystem_t * fs = init_FileSystem(max_num_file, max_dim_storage);
+
+    /* FINE preaprazione della coda concorrente,della pipe e del fs */
 
 
     /* INIZIO generazione dei thread worker */
@@ -119,6 +122,7 @@ int main(int argc, char ** argv){
     
     args->pipeWriting_fd = pipeWriting_fd;
     args->q = ready_clients;
+    args->fs = fs;
 
     for(int i=0; i<num_thread_worker; ++i){
 	    EXIT_ON(pthread_create(&tidArr[i], NULL, worker, (void*)args), != 0);
@@ -250,6 +254,8 @@ int main(int argc, char ** argv){
     
 
     /* INIZIO operazioni di chiusura */
+
+    // dealloca il fs con tutti i file
     close(pipeReadig_fd);
     close(pipeWriting_fd);
     close(pipeSigReading);

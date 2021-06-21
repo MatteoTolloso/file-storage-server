@@ -7,12 +7,35 @@ void fs_init(){
 
 }
 
-int fs_request_manager(int clientFd, int requestType){
+int fs_request_manager(Filesystem_t * fs, int clientFd, int requestType){
 
     int retVal = 0;
 
     switch (requestType){
-        case OPEN_F:
+        
+        case OPEN_F:;
+            
+            int len, flags;  
+            char path[MAX_PATH]; 
+            
+            if (read(clientFd, &len, sizeof(int)) != sizeof(int)){
+                return -1;
+            }
+            if (read(clientFd, &path, len) != len){
+                return -1;
+            }
+            if (read(clientFd, &flags, sizeof(int)) != sizeof(int)){
+                return -1;
+            }
+            
+            retVal = openFile_handler(fs, clientFd, path, flags);
+            
+            if (read(clientFd, &retVal, sizeof(int)) != sizeof(int)){
+                return -1;
+            }
+            
+            return 0; // successo
+            
 
         break;
 
@@ -59,6 +82,24 @@ int fs_request_manager(int clientFd, int requestType){
 
 }
 
+int openFile_handler(Filesystem_t * fs, int clientFd, char * path, int flags){
+    
+
+    EXIT_ON(pthread_mutex_lock(&fs->fs_lock), != 0);    // prendo lock fs
+
+    File_t * file = searchFile(fs, path); // cerco il file 
+
+    // agisco in base ai flag
+
+    if(flags == 0){     // nessun flag
+        return E_NOT_EX;
+    }
+    
+    //rilascio lock
+
+    return 0;
+}
+/*
 int readFile_handler(Filesystem_t * fs, char * path, void * buf, size_t * size ){
 
     EXIT_ON(pthread_mutex_lock(&fs->fs_lock), != 0);    // lock del fs
@@ -112,6 +153,43 @@ int removeFile_handler(Filesystem_t * fs, char * path, void * buf, size_t * size
     return 1;
 
 }
+*/
+
+File_t * searchFile(Filesystem_t * fs, char * path){ // da cambiare con la tabella hash
+
+    File_t * tmp = fs->firstFile;
+
+    while(tmp != NULL){
+        if(strncmp(tmp->path, path, MAX_PATH) == 0){
+            return tmp;
+        }
+        tmp = tmp->next;
+    }
+
+    return NULL;
+
+}
+
+Filesystem_t * init_FileSystem(int maxNumFile, int maxSize){
+    
+    Filesystem_t * fs;
+    EXIT_ON(fs = malloc(sizeof(fs)), == NULL);
+    
+    fs->actSize = 0;
+    fs->actNumFile = 0;
+    fs->maxSize = maxSize;
+    fs->maxNumFile = maxNumFile;
+    fs->maxRSize = 0;
+    fs->maxRNumFile = 0;
+    fs->cacheAlgoCount = 0;
+
+    EXIT_ON(pthread_mutex_init(&fs->fs_lock, NULL), != 0);
+
+    fs->firstFile = NULL;
+    fs->lastFile = NULL;
+
+    return fs;
+}
 
 void f_init(File_t * file){
     file->path = NULL;
@@ -121,7 +199,6 @@ void f_init(File_t * file){
     file->next = NULL;
     file->f_activeReaders = 0;
     file->f_activeWriters = 0;
-    file->f_queueSize = 0;
     EXIT_ON(pthread_mutex_init(&file->f_mutex, NULL), != 0);
     EXIT_ON(pthread_mutex_init(&file->f_order, NULL), != 0);
     EXIT_ON(pthread_cond_init(&file->f_go, NULL), != 0);
@@ -130,12 +207,10 @@ void f_init(File_t * file){
 void f_startRead(File_t * file){
     EXIT_ON(pthread_mutex_lock(&file->f_order), != 0); // sono in fila
     EXIT_ON(pthread_mutex_lock(&file->f_mutex), != 0); // sono in sezione critica
-    file->f_queueSize++;
     while(file->f_activeWriters > 0){     // se ci sono scrittori attivi mi sospendo (ma mantengo il posto in fila)
         EXIT_ON(pthread_cond_wait(&file->f_go, &file->f_mutex), != 0 );
     }
     file->f_activeReaders++;
-    file->f_queueSize--;
     EXIT_ON(pthread_mutex_unlock(&file->f_order), != 0); // rilascio il posto in fila
     EXIT_ON(pthread_mutex_unlock(&file->f_mutex), != 0); // rilascio la mutex
 }
@@ -152,12 +227,10 @@ void f_doneRead(File_t * file){
 void f_startWrite(File_t * file){
     EXIT_ON(pthread_mutex_lock(&file->f_order), != 0); // sono in fila
     EXIT_ON(pthread_mutex_lock(&file->f_mutex), != 0 ); // sono in sezione critica
-    file->f_queueSize++;
     while(file->f_activeReaders > 0 || file->f_activeWriters > 0){     // se ci sono scrittori o lettori attivi mi sospendo (ma mantenfo il posto in fila)
         EXIT_ON(pthread_cond_wait(&file->f_go, &file->f_mutex), != 0 );
     }
     file->f_activeWriters++;
-    file->f_queueSize--;
     EXIT_ON(pthread_mutex_unlock(&file->f_order), != 0); // rilascio il posto in fila
     EXIT_ON(pthread_mutex_unlock(&file->f_mutex), != 0); // rilascio la mutex
 }
@@ -165,7 +238,7 @@ void f_startWrite(File_t * file){
 void f_startRemove(File_t * file){
     EXIT_ON(pthread_mutex_lock(&file->f_order), != 0); // sono in fila
     EXIT_ON(pthread_mutex_lock(&file->f_mutex), != 0 ); // sono in sezione critica
-    while(file->f_activeReaders > 0 || file->f_activeWriters > 0 || file->f_queueSize > 0){     // se ci sono scrittori o lettori attivi mi sospendo (ma mantenfo il posto in fila)
+    while(file->f_activeReaders > 0 || file->f_activeWriters > 0){     // se ci sono scrittori o lettori attivi mi sospendo (ma mantenfo il posto in fila)
         EXIT_ON(pthread_cond_wait(&file->f_go, &file->f_mutex), != 0 );
     }
     EXIT_ON(pthread_mutex_unlock(&file->f_order), != 0); // rilascio il posto in fila

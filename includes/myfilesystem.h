@@ -5,6 +5,7 @@
 #include <string.h>
 #include <myutil.h>
 #include <mylinkedlist.h>
+#include <unistd.h>
 
 #define OPEN_F 1
 #define READ_F 2
@@ -16,7 +17,14 @@
 #define CLOSE_F 8
 #define REMOVE_F 9
 
-typedef struct _file{
+//messages server-client
+#define E_LOCK 4    // from server
+#define E_NOT_EX 5  // from server
+#define E_EX 6      // from server
+
+#define MAX_PATH 1024
+
+typedef struct File_t{
     char* path;
     int size;
     void * cont; //contenuto del file 
@@ -33,15 +41,18 @@ typedef struct _file{
     pthread_cond_t f_go;    //sospensione sia dei lettori che degli scrittori
     int f_activeReaders;
     int f_activeWriters;
-    int f_queueSize;
 }File_t;
 
-typedef struct _fs{
-    int numberOfFile;
-    int maxSize;
-    int maxNumFile;
-    pthread_mutex_t fs_lock;
+typedef struct FileSystem_t{
+    int actSize;    //dimensione attuale
+    int actNumFile; //numero di file attuali
+    int maxSize;    //massima dimensione possibile
+    int maxNumFile; //massimo numero file possibile
+    int maxRSize;   //massima dimensione raggiunta
+    int maxRNumFile;//massimo numero di file raggiunto
+    int cacheAlgoCount; // numero di esecuzioni algoritmo cache
 
+    pthread_mutex_t fs_lock;
 
     File_t * firstFile;
     File_t * lastFile;
@@ -49,8 +60,10 @@ typedef struct _fs{
 }Filesystem_t;
 
 
-int fs_request_manager(int clientFd, int requestType);
-
+int fs_request_manager(Filesystem_t * fs, int clientFd, int requestType);
+Filesystem_t * init_FileSystem(int maxNumFile, int maxSize);
+int openFile_handler(Filesystem_t * fs, int clientFd, char * path, int flags);
+File_t * searchFile(Filesystem_t * fs, char * path);
 
 
 

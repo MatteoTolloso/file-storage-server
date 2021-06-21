@@ -8,8 +8,8 @@ int updatemax(fd_set set, int fdmax) {
 }
 
 int init_server(char * sck_name){
-    EXIT_ON(strnlen(sck_name, UNIX_PATH_MAX) >= UNIX_PATH_MAX - 2, != 0);
-    sck_name[strnlen(sck_name, UNIX_PATH_MAX)] = '\0';
+    EXIT_ON(strnlen(sck_name, UNIX_PATH_MAX) >= UNIX_PATH_MAX,  != 0);
+    sck_name[strnlen(sck_name, UNIX_PATH_MAX-1)] = '\0';
     int socket_fd;
     EXIT_ON(socket_fd = socket(AF_UNIX, SOCK_STREAM, 0), == -1);
     struct sockaddr_un server_addr;
