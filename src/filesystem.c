@@ -59,6 +59,60 @@ int fs_request_manager(int clientFd, int requestType){
 
 }
 
+int readFile_handler(Filesystem_t * fs, char * path, void * buf, size_t * size ){
+
+    EXIT_ON(pthread_mutex_lock(&fs->fs_lock), != 0);    // lock del fs
+
+    File_t * file = findFile(fs, path);     // funzione che assume di avere la lock
+
+    f_startRead(file);  // voglio entrare in sezione critica da lettore
+
+    EXIT_ON(pthread_mutex_unlock(&fs->fs_lock), != 0);    // rilascio lock del fs
+
+    // ... operazioni di lettura, trasferisco il contenuto del file in buf e aggiorno size
+
+    f_doneRead(file);   // esco dalla sezione critica
+
+    return 1;
+
+}
+
+int writeFile_handler(Filesystem_t * fs, char * path, void * buf, size_t * size){
+
+    EXIT_ON(pthread_mutex_lock(&fs->fs_lock), != 0);    // lock del fs
+
+    File_t * file = findFile(fs, path);     // funzione che assume di avere la lock
+
+    f_startWrite(file);  // voglio entrare in sezione critica da scrittore
+
+    // ... operazioni di scrittura, con aggiornamento del file e del fs
+
+    f_doneRead(file);   // esco dalla sezione critica
+
+    EXIT_ON(pthread_mutex_unlock(&fs->fs_lock), != 0);    // rilascio lock del fs
+
+
+    return 1;
+
+}
+
+int removeFile_handler(Filesystem_t * fs, char * path, void * buf, size_t * size){
+
+    EXIT_ON(pthread_mutex_lock(&fs->fs_lock), != 0);    // lock del fs
+
+    File_t * file = findFile(fs, path);     // funzione che assume di avere la lock
+
+    f_startRemove(file);  // voglio entrare in sezione critica da scrittore sapendo che oltre ad essere solo non c'è nessuno in attesa
+
+    // ... operazioni di eleminazione, con aggiornamento del file e del fs
+
+    EXIT_ON(pthread_mutex_unlock(&fs->fs_lock), != 0);    // rilascio lock del fs
+
+
+    return 1;
+
+}
+
 void f_init(File_t * file){
     file->path = NULL;
     file->size = 0;
@@ -75,7 +129,8 @@ void f_init(File_t * file){
 
 void f_startRead(File_t * file){
     EXIT_ON(pthread_mutex_lock(&file->f_order), != 0); // sono in fila
-    EXIT_ON(pthread_mutex_lock(&file->f_mutex), != 0 ); // sono in sezione critica
+    EXIT_ON(pthread_mutex_lock(&file->f_mutex), != 0); // sono in sezione critica
+    file->f_queueSize++;
     while(file->f_activeWriters > 0){     // se ci sono scrittori attivi mi sospendo (ma mantengo il posto in fila)
         EXIT_ON(pthread_cond_wait(&file->f_go, &file->f_mutex), != 0 );
     }
@@ -97,13 +152,27 @@ void f_doneRead(File_t * file){
 void f_startWrite(File_t * file){
     EXIT_ON(pthread_mutex_lock(&file->f_order), != 0); // sono in fila
     EXIT_ON(pthread_mutex_lock(&file->f_mutex), != 0 ); // sono in sezione critica
+    file->f_queueSize++;
     while(file->f_activeReaders > 0 || file->f_activeWriters > 0){     // se ci sono scrittori o lettori attivi mi sospendo (ma mantenfo il posto in fila)
         EXIT_ON(pthread_cond_wait(&file->f_go, &file->f_mutex), != 0 );
     }
     file->f_activeWriters++;
+    file->f_queueSize--;
     EXIT_ON(pthread_mutex_unlock(&file->f_order), != 0); // rilascio il posto in fila
     EXIT_ON(pthread_mutex_unlock(&file->f_mutex), != 0); // rilascio la mutex
 }
+
+void f_startRemove(File_t * file){
+    EXIT_ON(pthread_mutex_lock(&file->f_order), != 0); // sono in fila
+    EXIT_ON(pthread_mutex_lock(&file->f_mutex), != 0 ); // sono in sezione critica
+    while(file->f_activeReaders > 0 || file->f_activeWriters > 0 || file->f_queueSize > 0){     // se ci sono scrittori o lettori attivi mi sospendo (ma mantenfo il posto in fila)
+        EXIT_ON(pthread_cond_wait(&file->f_go, &file->f_mutex), != 0 );
+    }
+    EXIT_ON(pthread_mutex_unlock(&file->f_order), != 0); // rilascio il posto in fila
+    EXIT_ON(pthread_mutex_unlock(&file->f_mutex), != 0); // rilascio la mutex
+}
+
+
 
 void f_doneWrite(File_t * file){
     EXIT_ON(pthread_mutex_lock(&file->f_mutex), != 0);

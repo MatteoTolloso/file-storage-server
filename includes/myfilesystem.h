@@ -24,6 +24,10 @@ typedef struct _file{
     struct File_t * prev;
     struct File_t * next;
 
+    List_t* openedBy;   // lista di client che hanno il file aperto 
+
+    int lockedBy;   // client che ha fatto la lock 
+
     pthread_mutex_t f_mutex; //accesso in mutua esclusione alle variabili condivise
     pthread_mutex_t f_order; //utilizzata per regolare l'accesso fair
     pthread_cond_t f_go;    //sospensione sia dei lettori che degli scrittori
@@ -37,7 +41,7 @@ typedef struct _fs{
     int maxSize;
     int maxNumFile;
     pthread_mutex_t fs_lock;
-    pthread_cond_t fs_cond; // qualsiasi operazione che modifica 
+
 
     File_t * firstFile;
     File_t * lastFile;

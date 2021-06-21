@@ -13,7 +13,7 @@ int init(struct node **head, int data)
 int list_insert(struct node **head, int data)
 {
 
-    if (head == NULL){
+    if (*head == NULL){
         return init(head,data);
     }
 
@@ -37,6 +37,29 @@ int list_insert(struct node **head, int data)
 	return 0;
 
 }
+
+int list_mem(struct node **head, int data)
+{
+
+    if (*head == NULL){
+        return 0;
+    }
+
+	struct node *current = *head;
+
+	while (current){
+
+        if (current->data == data){
+            return 1;
+        }
+
+		current = current->next;
+	} 
+
+	return 0;
+
+}
+
 
 void list_remove(struct node **head, int data)
 {
