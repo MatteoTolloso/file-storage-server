@@ -1,15 +1,9 @@
 
 #include <myfilesystem.h>
 
-void fs_init(){
-    // inizializza le variabili del fs
-    // per ogni file inizializza le variabili
+int fs_request_manager(FileSystem_t * fs, int clientFd, int requestType){
 
-}
-
-int fs_request_manager(Filesystem_t * fs, int clientFd, int requestType){
-
-    int retVal = 0;
+    int retVal = 0; // messaggio di risposta da inviare al client (0 se è ok)
 
     switch (requestType){
         
@@ -18,25 +12,14 @@ int fs_request_manager(Filesystem_t * fs, int clientFd, int requestType){
             int len, flags;  
             char path[MAX_PATH]; 
             
-            if (read(clientFd, &len, sizeof(int)) != sizeof(int)){
-                return -1;
-            }
-            if (read(clientFd, &path, len) != len){
-                return -1;
-            }
-            if (read(clientFd, &flags, sizeof(int)) != sizeof(int)){
-                return -1;
-            }
+            if (readn(clientFd, &len, sizeof(int)) != sizeof(int)) return -1;
+            if (readn(clientFd, &path, len) != len) return -1;
+            if (readn(clientFd, &flags, sizeof(int)) != sizeof(int)) return -1;
             
             retVal = openFile_handler(fs, clientFd, path, flags);
             
-            if (read(clientFd, &retVal, sizeof(int)) != sizeof(int)){
-                return -1;
-            }
-            
-            return 0; // successo
-            
-
+            if (writen(clientFd, &retVal, sizeof(int)) != sizeof(int)) return -1;
+    
         break;
 
         case READ_F:
@@ -73,32 +56,101 @@ int fs_request_manager(Filesystem_t * fs, int clientFd, int requestType){
 
         default:
             fprintf(stderr, "Richesta non disponibile\n");
-            retVal = 1;
+            retVal = E_BAD_RQ;
+            if (writen(clientFd, &retVal, sizeof(int)) != sizeof(int)){
+                return -1;
+            }
+
+            fprintf(stderr, "inviato: %d\n", retVal);
+
         break;
 
     }
 
-    return retVal;
+    printFs(fs);
+    return 0;
 
 }
 
-int openFile_handler(Filesystem_t * fs, int clientFd, char * path, int flags){
+int openFile_handler(FileSystem_t * fs, int clientFd, char * path, int flags){
     
-
     EXIT_ON(pthread_mutex_lock(&fs->fs_lock), != 0);    // prendo lock fs
 
     File_t * file = searchFile(fs, path); // cerco il file 
-
+    
     // agisco in base ai flag
 
-    if(flags == 0){     // nessun flag
-        return E_NOT_EX;
+    if(file == NULL){     // file non esisteva
+        
+        if(flags == 0 || flags == 2){     //nessun flag o solo O_LOCK
+            EXIT_ON(pthread_mutex_unlock(&fs->fs_lock), != 0);   
+            return E_NOT_EX; 
+        }
+
+        // devo aggiungere un file
+        
+        if(fs->actNumFile + 1 == fs->maxNumFile){   // rimpiazzamento
+            if( cacheEvict(fs) != 0){
+            EXIT_ON(pthread_mutex_unlock(&fs->fs_lock), != 0);   
+            return E_NO_SPACE;
+            }
+        }
+
+        File_t * newfile  = init_File(path, clientFd); 
+        
+        if(flags == 3){  // O_CREATE | O_LOCK
+            newfile->lockedBy = clientFd;
+        }
+
+        if(fs->actNumFile == 0){
+            fs->lastFile = newfile;
+            fs->firstFile = newfile;
+        }
+        else{
+            (fs->lastFile)->next = newfile;
+            newfile->prev = fs->lastFile;
+            fs->lastFile = newfile;
+        }
+        fs->actNumFile++;
+        if(fs->actNumFile > fs->maxRNumFile) fs->maxRNumFile = fs->actNumFile;
+        EXIT_ON(pthread_mutex_unlock(&fs->fs_lock), != 0);   
+        return 0;
     }
-    
-    //rilascio lock
+
+    if(file != NULL){ // esiste
+
+        if (flags == 1 || flags == 3){    // O_CREATE oppure O_CREATE | O_LOCK
+            EXIT_ON(pthread_mutex_unlock(&fs->fs_lock), != 0);
+            return E_ALR_EX;   
+        }
+
+        if(flags == 0){ // nessun flag
+            list_insert( &file->openedBy, clientFd);
+            EXIT_ON(pthread_mutex_unlock(&fs->fs_lock), != 0);   
+            return 0;
+        }
+
+        if (flags == 2){    // O_LOCK
+
+            if(file->lockedBy == 0){
+                file->lockedBy = clientFd;
+                EXIT_ON(pthread_mutex_unlock(&fs->fs_lock), != 0);   
+                return 0;
+            }
+            else{
+                EXIT_ON(pthread_mutex_unlock(&fs->fs_lock), != 0);   
+                return E_ALR_LK;
+            }
+
+        }
+
+
+    }
 
     return 0;
 }
+
+
 /*
 int readFile_handler(Filesystem_t * fs, char * path, void * buf, size_t * size ){
 
@@ -155,7 +207,7 @@ int removeFile_handler(Filesystem_t * fs, char * path, void * buf, size_t * size
 }
 */
 
-File_t * searchFile(Filesystem_t * fs, char * path){ // da cambiare con la tabella hash
+File_t * searchFile(FileSystem_t * fs, char * path){ // da cambiare con la tabella hash
 
     File_t * tmp = fs->firstFile;
 
@@ -170,10 +222,10 @@ File_t * searchFile(Filesystem_t * fs, char * path){ // da cambiare con la tabel
 
 }
 
-Filesystem_t * init_FileSystem(int maxNumFile, int maxSize){
+FileSystem_t * init_FileSystem(int maxNumFile, int maxSize){
     
-    Filesystem_t * fs;
-    EXIT_ON(fs = malloc(sizeof(fs)), == NULL);
+    FileSystem_t * fs;
+    EXIT_ON(fs = malloc(sizeof(FileSystem_t)), == NULL);
     
     fs->actSize = 0;
     fs->actNumFile = 0;
@@ -191,17 +243,26 @@ Filesystem_t * init_FileSystem(int maxNumFile, int maxSize){
     return fs;
 }
 
-void f_init(File_t * file){
-    file->path = NULL;
+File_t * init_File(char* path, int clientFd){
+    
+    File_t * file;
+    EXIT_ON(file = malloc(sizeof(File_t)), == NULL);
+
+    EXIT_ON( file->path = malloc(sizeof(char) * (strlen(path) +1)), == NULL);
+    EXIT_ON( strcpy(file->path, path), == NULL);
     file->size = 0;
     file->cont = NULL;
     file->prev = NULL;
     file->next = NULL;
-    file->f_activeReaders = 0;
-    file->f_activeWriters = 0;
+    file->openedBy = NULL;
+    list_insert(&file->openedBy, clientFd);
     EXIT_ON(pthread_mutex_init(&file->f_mutex, NULL), != 0);
     EXIT_ON(pthread_mutex_init(&file->f_order, NULL), != 0);
     EXIT_ON(pthread_cond_init(&file->f_go, NULL), != 0);
+    file->f_activeReaders = 0;
+    file -> f_activeWriters = 0;
+
+    return file;
 }
 
 void f_startRead(File_t * file){
@@ -235,18 +296,6 @@ void f_startWrite(File_t * file){
     EXIT_ON(pthread_mutex_unlock(&file->f_mutex), != 0); // rilascio la mutex
 }
 
-void f_startRemove(File_t * file){
-    EXIT_ON(pthread_mutex_lock(&file->f_order), != 0); // sono in fila
-    EXIT_ON(pthread_mutex_lock(&file->f_mutex), != 0 ); // sono in sezione critica
-    while(file->f_activeReaders > 0 || file->f_activeWriters > 0){     // se ci sono scrittori o lettori attivi mi sospendo (ma mantenfo il posto in fila)
-        EXIT_ON(pthread_cond_wait(&file->f_go, &file->f_mutex), != 0 );
-    }
-    EXIT_ON(pthread_mutex_unlock(&file->f_order), != 0); // rilascio il posto in fila
-    EXIT_ON(pthread_mutex_unlock(&file->f_mutex), != 0); // rilascio la mutex
-}
-
-
-
 void f_doneWrite(File_t * file){
     EXIT_ON(pthread_mutex_lock(&file->f_mutex), != 0);
     file->f_activeWriters--;
@@ -254,4 +303,45 @@ void f_doneWrite(File_t * file){
     EXIT_ON( pthread_mutex_unlock(&file->f_mutex), != 0);
 }
 
+int readn(int fd, void *ptr, size_t n) {  
+    size_t   nleft;
+    ssize_t  nread;
 
+    nleft = n;
+    while (nleft > 0) {
+        if((nread = read(fd, ptr, nleft)) < 0) {
+        if (nleft == n) return -1; /* error, return -1 */
+        else break; /* error, return amount read so far */
+    } else if (nread == 0) break; /* EOF */
+    
+    nleft -= nread;
+    ptr   = (void*)((char*)ptr + nread);
+    }
+    return(n - nleft); /* return >= 0 */
+}
+
+int writen(int fd, void *ptr, size_t n) {  
+    size_t   nleft;
+    ssize_t  nwritten;
+
+    nleft = n;
+    while (nleft > 0) {
+        if((nwritten = write(fd, ptr, nleft)) < 0) {
+        if (nleft == n) return -1; /* error, return -1 */
+        else break; /* error, return amount written so far */
+        } else if (nwritten == 0) break; 
+        nleft -= nwritten;
+        ptr   = (void*)((char*)ptr + nwritten);
+    }
+    return(n - nleft); /* return >= 0 */
+}
+
+
+void printFs(FileSystem_t * fs){
+    File_t * f = fs->firstFile;
+
+    while(f != NULL){
+        printf("path file: %s\n", f->path);
+        f = f->next;
+    }
+}

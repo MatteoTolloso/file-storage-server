@@ -21,7 +21,11 @@
 #define E_INV_PTH 3 //internal
 #define E_LOCK 4    // from server
 #define E_NOT_EX 5  // from server
-#define E_EX 6      // from server
+#define E_ALR_EX 6      // from server
+#define E_BAD_RQ 7  // from server
+#define E_ALR_LK 8
+#define E_NO_SPACE 9
+
 
 #define O_CREATE 1
 #define O_LOCK 2
@@ -51,26 +55,42 @@ int openFile(const char* pathname, int flags);
 
 int main(int argc, char ** argv){
 
-    printf("result : %d\n", openConnection(SOCKNAME));
+    printf("apro la connessione : %d\n", openConnection(SOCKNAME));
 
-    sleep(2);
+   
+    printf("provo ad aprire un file : %d\n", openFile("pluto_pippo ciaio", O_CREATE | O_LOCK));
 
-    printf("result : %d\n", closeConnection(SOCKNAME));
+    printf("provo ad aprire un file : %d\n", openFile("filepaperino", O_CREATE));
+    
+    printf("provo ad aprire un file : %d\n", openFile("filedue", O_CREATE));
 
-    sleep(3);
+    printf("provo ad aprire un file : %d\n", openFile("pluto_pippo ciaio", O_LOCK));
+
+
+    errno = 0;
+    printf("error %d, %d: \n", myerrno, errno);
+
+    
+
+    printf("chiudo la connesione : %d\n", closeConnection(SOCKNAME));
 
     return 0;
 
 }
 
-int openFile(const char* pathname, int flags){
+int openFile(const char* pth, int flags){
     
     if(flags < 0 || flags > 2) {
         myerrno = E_INV_FLG;
         return -1;
     }
 
-    int len = strnlen(pathname, MAX_PATH); // == sizeof(pathname)
+    char pathname[MAX_PATH+1];
+    strncpy(pathname, pth, MAX_PATH);
+    pathname[MAX_PATH] = '\0';
+
+    int len = strlen(pathname) + 1; // == sizeof(pathname)
+    pathname[len] = '\0';
     int reqType = OPEN_F;
     int resp = 0;
 
@@ -89,7 +109,7 @@ int openFile(const char* pathname, int flags){
         return -1;
     }
 
-    if(write(socketfd, &pathname, sizeof(pathname)) != sizeof(pathname)){  // scrivo il path
+    if(write(socketfd, &pathname, len) != len){  // scrivo il path
         myerrno = errno;
         return -1;
     }
@@ -104,24 +124,12 @@ int openFile(const char* pathname, int flags){
         return -1;
     }
 
-    switch (resp){
-        case 4: // file già lock
-            myerrno = E_LOCK;
-            return -1;
-            break;
-        
-        case 5: //file non esiste
-            myerrno = E_NOT_EX;
-            return -1;
-            break;
-        
-        case 6:
-            myerrno = E_EX;
-            return -1;
-            break;
-
-        default:
-            return 0;
+    if(resp == 0){
+        return 0;
+    }
+    else{
+        myerrno = resp;
+        return -1;
     }
 
 }

@@ -20,7 +20,11 @@
 //messages server-client
 #define E_LOCK 4    // from server
 #define E_NOT_EX 5  // from server
-#define E_EX 6      // from server
+#define E_ALR_EX 6      // from server
+#define E_BAD_RQ 7   // from server
+#define E_ALR_LK 8
+#define E_NO_SPACE 9
+
 
 #define MAX_PATH 1024
 
@@ -57,14 +61,17 @@ typedef struct FileSystem_t{
     File_t * firstFile;
     File_t * lastFile;
 
-}Filesystem_t;
+}FileSystem_t;
 
 
-int fs_request_manager(Filesystem_t * fs, int clientFd, int requestType);
-Filesystem_t * init_FileSystem(int maxNumFile, int maxSize);
-int openFile_handler(Filesystem_t * fs, int clientFd, char * path, int flags);
-File_t * searchFile(Filesystem_t * fs, char * path);
-
+int fs_request_manager(FileSystem_t * fs, int clientFd, int requestType);
+FileSystem_t * init_FileSystem(int maxNumFile, int maxSize);
+int openFile_handler(FileSystem_t * fs, int clientFd, char * path, int flags);
+File_t * searchFile(FileSystem_t * fs, char * path);
+int writen(int fd, void *ptr, size_t n);
+int readn(int fd, void *ptr, size_t n);
+File_t * init_File(char* path, int clientFd);
+void printFs(FileSystem_t * fs);
 
 
 
