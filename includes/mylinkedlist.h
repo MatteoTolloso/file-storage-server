@@ -17,4 +17,5 @@ void list_remove(struct node **head, int data);
 
 void list_deinit(struct node **head);
 
+int list_mem(struct node **head, int data);
 #endif /* _MYLINKEDLIST_H */

@@ -7,19 +7,19 @@ int fs_request_manager(FileSystem_t * fs, int clientFd, int requestType){
 
     switch (requestType){
         
-        case OPEN_F:;
+        case OPEN_F:;{
             
-            int len, flags;  
+            int flags;  
             char path[MAX_PATH]; 
             
-            if (readn(clientFd, &len, sizeof(int)) != sizeof(int)) return -1;
-            if (readn(clientFd, &path, len) != len) return -1;
+            if (readn(clientFd, &path, MAX_PATH) != MAX_PATH) return -1;
             if (readn(clientFd, &flags, sizeof(int)) != sizeof(int)) return -1;
-            
+            fprintf(stderr, "open file, path: %s, flags: %d\n", path, flags );
+
             retVal = openFile_handler(fs, clientFd, path, flags);
             
             if (writen(clientFd, &retVal, sizeof(int)) != sizeof(int)) return -1;
-    
+        }
         break;
 
         case READ_F:
@@ -30,8 +30,32 @@ int fs_request_manager(FileSystem_t * fs, int clientFd, int requestType){
 
         break;
 
-        case WRITE_F:
+        case WRITE_F:;{
+            int len, retBufLen;
+            char path[MAX_PATH];
+            char *buf, *retBuf = NULL;
+            if (readn(clientFd, &path, MAX_PATH) != MAX_PATH) return -1;  // path
+            if (readn(clientFd, &len, sizeof(int)) != sizeof(int)) return -1; // lunghezza file
+            fprintf(stderr, "write file, path: %s, len: %d\n", path, len );
+            EXIT_ON(buf = malloc(len), == NULL);
+            if (readn(clientFd, buf, len) != len){free(buf); return -1;} // file
 
+            //scrive nel fs il file con path e contenuto buf, mette in retFile i file da rimandare al client
+            retVal = writeFile_handler(fs, clientFd, path, len, buf, &retBuf, &retBufLen);
+
+            if (writen(clientFd, &retVal, sizeof(int)) != sizeof(int)) return -1;
+            
+            if(retVal > 1) free(buf);   // c'è stato un errore interno nella richiesta
+            if (retVal == 1){       // sono stati espulsi file
+                if (writen(clientFd, &retBuf, retBufLen) != retBufLen) {
+                    free(retBuf); 
+                    return -1;
+                }
+                else{
+                    free(retBuf);
+                }
+            }
+        }
         break;
 
         case APPEND_T_F:
@@ -72,6 +96,96 @@ int fs_request_manager(FileSystem_t * fs, int clientFd, int requestType){
 
 }
 
+int writeFile_handler(FileSystem_t * fs, int clientFd, char* path, int len, char * buf, char ** retBuf, int * retBufLen){
+
+    EXIT_ON(pthread_mutex_lock(&fs->fs_lock), != 0);    // prendo lock fs
+    
+
+    File_t * file = searchFile(fs, path); // cerco il file con quel path
+    
+
+    if(file == NULL){
+        EXIT_ON(pthread_mutex_unlock(&fs->fs_lock), != 0);
+        return E_NOT_EX;
+    }
+
+    f_startRead(file); // devo modificare il file, entro il scrittura
+    
+
+    if(!list_mem(&file->openedBy, clientFd)){    // controllo se ho aperto il file
+        f_doneRead(file);
+        EXIT_ON(pthread_mutex_unlock(&fs->fs_lock), != 0);
+        return E_NOT_OPN;
+    }
+    /* temporaneamente non mi interesso alla lock
+    if(clientFd != file->lockedBy ){    // controllo se ho la lock sul file
+        f_doneRead(file);
+        EXIT_ON(pthread_mutex_unlock(&fs->fs_lock), != 0);
+        return E_LOCK;
+    }
+    */
+    if(file->size != 0){        // controllo se il file è stato già scritto
+        f_doneRead(file);
+        EXIT_ON(pthread_mutex_unlock(&fs->fs_lock), != 0);
+        return E_BAD_RQ;
+    }
+    
+    if(fs->maxSize < len){  // non riuscirò mai a trovare lo spazio necessario
+        f_doneRead(file);
+        EXIT_ON(pthread_mutex_unlock(&fs->fs_lock), != 0);
+        return E_NO_SPACE;
+    }
+    
+    f_doneRead(file);
+
+    // fase di evict e salvataggio dei file da mandare al client
+    fprintf(stderr, "check1: %d %d\n", fs->actSize, len);
+    int i_retBufLen = 0;
+    char * i_retBuf = NULL;
+    int endval = -1;
+    while((fs->actSize + len > fs->maxSize)){
+        File_t * tmp = cacheEvict(fs);  // scollega il file dal fs e non ci sono scrittori o lettori atttivi o in attesa
+        fprintf(stderr, "after evict");        
+        if(tmp == NULL){
+            EXIT_ON(pthread_mutex_unlock(&fs->fs_lock), != 0);
+            return E_NO_SPACE;
+        }
+        // devo inserire il file del buffer da mandare al client
+        
+        EXIT_ON(i_retBuf= realloc(i_retBuf, i_retBufLen + MAX_PATH + tmp->size + sizeof(int)), == NULL);
+        memcpy(i_retBuf + i_retBufLen, tmp->path, MAX_PATH);   // path
+        i_retBufLen += MAX_PATH;
+        memcpy(i_retBuf + i_retBufLen, &file->size, sizeof(int)); // lunghezza
+        i_retBufLen += sizeof(int);
+        memcpy(i_retBuf + i_retBufLen, tmp->cont, tmp->size);    // contenuto
+        i_retBufLen += tmp->size;
+        fprintf(stderr, "buffer preparato\n");
+        deleteFile(tmp);
+    }
+    if(i_retBuf != NULL){
+        EXIT_ON(i_retBuf= realloc(i_retBuf, i_retBufLen + sizeof(int)), == NULL);
+        memcpy(retBuf, &endval, sizeof(int));
+        *retBuf = i_retBuf;
+        *retBufLen = i_retBufLen;
+    }
+    fprintf(stderr, "check2: %d\n", *retBufLen);
+
+    // scrittura nel file 
+
+    f_startWrite(file);
+    file->cont = buf;
+    file->size = len;
+    fs->actSize += len;
+    if(fs->actSize >fs->maxRSize) fs->maxRSize = fs->actSize;
+    f_doneWrite(file);
+    EXIT_ON(pthread_mutex_unlock(&fs->fs_lock), != 0);
+    
+
+    if(*retBuf == NULL) return 0;
+    else return 1;
+
+}
+
 int openFile_handler(FileSystem_t * fs, int clientFd, char * path, int flags){
     
     EXIT_ON(pthread_mutex_lock(&fs->fs_lock), != 0);    // prendo lock fs
@@ -90,10 +204,16 @@ int openFile_handler(FileSystem_t * fs, int clientFd, char * path, int flags){
         // devo aggiungere un file
         
         if(fs->actNumFile + 1 == fs->maxNumFile){   // rimpiazzamento
-            if( cacheEvict(fs) != 0){
+            File_t * tmp = cacheEvict(fs);
+            if( tmp == NULL){    // non riesco a rimpiazzare
             EXIT_ON(pthread_mutex_unlock(&fs->fs_lock), != 0);   
             return E_NO_SPACE;
             }
+            else{
+                deleteFile(tmp);
+                fs->actNumFile--;
+            }
+            
         }
 
         File_t * newfile  = init_File(path, clientFd); 
@@ -101,7 +221,6 @@ int openFile_handler(FileSystem_t * fs, int clientFd, char * path, int flags){
         if(flags == 3){  // O_CREATE | O_LOCK
             newfile->lockedBy = clientFd;
         }
-
         if(fs->actNumFile == 0){
             fs->lastFile = newfile;
             fs->firstFile = newfile;
@@ -117,7 +236,7 @@ int openFile_handler(FileSystem_t * fs, int clientFd, char * path, int flags){
         return 0;
     }
 
-    if(file != NULL){ // esiste
+    if(file != NULL){ // il file esiste
 
         if (flags == 1 || flags == 3){    // O_CREATE oppure O_CREATE | O_LOCK
             EXIT_ON(pthread_mutex_unlock(&fs->fs_lock), != 0);
@@ -125,19 +244,24 @@ int openFile_handler(FileSystem_t * fs, int clientFd, char * path, int flags){
         }
 
         if(flags == 0){ // nessun flag
+            f_startWrite(file);
             list_insert( &file->openedBy, clientFd);
+            f_doneWrite(file);
             EXIT_ON(pthread_mutex_unlock(&fs->fs_lock), != 0);   
             return 0;
         }
 
         if (flags == 2){    // O_LOCK
-
+            f_startWrite(file);
+           
             if(file->lockedBy == 0){
                 file->lockedBy = clientFd;
+                f_doneWrite(file);
                 EXIT_ON(pthread_mutex_unlock(&fs->fs_lock), != 0);   
                 return 0;
             }
             else{
+                f_doneWrite(file);
                 EXIT_ON(pthread_mutex_unlock(&fs->fs_lock), != 0);   
                 return E_ALR_LK;
             }
@@ -150,72 +274,61 @@ int openFile_handler(FileSystem_t * fs, int clientFd, char * path, int flags){
     return 0;
 }
 
+File_t * cacheEvict(FileSystem_t * fs){ // assume la lock sul fs, non ci sarà nessuno in attesa sul file ritornato
+    File_t * tmp = fs->firstFile;
+    File_t * prev;
 
-/*
-int readFile_handler(Filesystem_t * fs, char * path, void * buf, size_t * size ){
+    while(tmp != NULL){
+        f_startRead(tmp);
+        
+        if(tmp->lockedBy == 0){ // se è bloccato vado avanti
 
-    EXIT_ON(pthread_mutex_lock(&fs->fs_lock), != 0);    // lock del fs
+            f_doneRead(tmp);
+            f_startWrite(tmp);   
+            fs->actSize -= tmp->size;
+            fs->actNumFile--;
+            fs->firstFile = tmp->next;
+            f_doneWrite(tmp); // quando esco da un file in scrittura, non c'è più nessuno nemmeno in attesa
+            if(fs->firstFile != NULL){
+                f_startWrite(fs->firstFile);
+                (fs->firstFile)->prev = NULL;
+                f_doneWrite(fs->firstFile);
+            } 
 
-    File_t * file = findFile(fs, path);     // funzione che assume di avere la lock
+            return tmp;
+            
+        }
+        prev = tmp;
+        tmp = tmp->next; 
+        f_doneRead(prev);
+    }
 
-    f_startRead(file);  // voglio entrare in sezione critica da lettore
-
-    EXIT_ON(pthread_mutex_unlock(&fs->fs_lock), != 0);    // rilascio lock del fs
-
-    // ... operazioni di lettura, trasferisco il contenuto del file in buf e aggiorno size
-
-    f_doneRead(file);   // esco dalla sezione critica
-
-    return 1;
-
+    return NULL;
 }
 
-int writeFile_handler(Filesystem_t * fs, char * path, void * buf, size_t * size){
-
-    EXIT_ON(pthread_mutex_lock(&fs->fs_lock), != 0);    // lock del fs
-
-    File_t * file = findFile(fs, path);     // funzione che assume di avere la lock
-
-    f_startWrite(file);  // voglio entrare in sezione critica da scrittore
-
-    // ... operazioni di scrittura, con aggiornamento del file e del fs
-
-    f_doneRead(file);   // esco dalla sezione critica
-
-    EXIT_ON(pthread_mutex_unlock(&fs->fs_lock), != 0);    // rilascio lock del fs
-
-
-    return 1;
-
+void deleteFile(File_t * tmp){
+    free(tmp->path);
+    if(tmp->cont != NULL) free(tmp->cont);
+    list_deinit(&tmp->openedBy);
+    EXIT_ON(pthread_mutex_destroy(&tmp->f_mutex), != 0);
+    EXIT_ON(pthread_mutex_destroy(&tmp->f_order), != 0);
+    EXIT_ON(pthread_cond_destroy(&tmp->f_go), != 0);
 }
-
-int removeFile_handler(Filesystem_t * fs, char * path, void * buf, size_t * size){
-
-    EXIT_ON(pthread_mutex_lock(&fs->fs_lock), != 0);    // lock del fs
-
-    File_t * file = findFile(fs, path);     // funzione che assume di avere la lock
-
-    f_startRemove(file);  // voglio entrare in sezione critica da scrittore sapendo che oltre ad essere solo non c'è nessuno in attesa
-
-    // ... operazioni di eleminazione, con aggiornamento del file e del fs
-
-    EXIT_ON(pthread_mutex_unlock(&fs->fs_lock), != 0);    // rilascio lock del fs
-
-
-    return 1;
-
-}
-*/
 
 File_t * searchFile(FileSystem_t * fs, char * path){ // da cambiare con la tabella hash
 
     File_t * tmp = fs->firstFile;
+    File_t * prev;
 
     while(tmp != NULL){
+        f_startRead(tmp);
         if(strncmp(tmp->path, path, MAX_PATH) == 0){
+            f_doneRead(tmp);
             return tmp;
         }
+        prev = tmp;
         tmp = tmp->next;
+        f_doneRead(prev);
     }
 
     return NULL;
@@ -335,7 +448,6 @@ int writen(int fd, void *ptr, size_t n) {
     }
     return(n - nleft); /* return >= 0 */
 }
-
 
 void printFs(FileSystem_t * fs){
     File_t * f = fs->firstFile;

@@ -18,12 +18,17 @@
 #define REMOVE_F 9
 
 //messages server-client
+#define RET_FILE 1  
+#define E_INV_FLG 2 //internal
+#define E_INV_PTH 3 //internal
 #define E_LOCK 4    // from server
 #define E_NOT_EX 5  // from server
 #define E_ALR_EX 6      // from server
-#define E_BAD_RQ 7   // from server
+#define E_BAD_RQ 7  // from server
 #define E_ALR_LK 8
 #define E_NO_SPACE 9
+#define E_NOT_OPN 10 
+#define E_INV_SCK 11 //internal
 
 
 #define MAX_PATH 1024
@@ -72,7 +77,13 @@ int writen(int fd, void *ptr, size_t n);
 int readn(int fd, void *ptr, size_t n);
 File_t * init_File(char* path, int clientFd);
 void printFs(FileSystem_t * fs);
-
+int writeFile_handler(FileSystem_t * fs, int clientFd, char* path, int len, char * buf, char ** retBuf, int * retBufLen);
+void f_startWrite(File_t * file);
+void f_doneWrite(File_t * file);
+void deleteFile(File_t * tmp);
+File_t * cacheEvict(FileSystem_t * fs);
+void f_startRead(File_t * file);
+void f_doneRead(File_t * file);
 
 
 #endif /* _MYFILESYSTEM_H */

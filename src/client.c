@@ -3,6 +3,9 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <myutil.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <sys/types.h> 
 #include <sys/socket.h>
 #include <sys/uio.h>
@@ -16,7 +19,7 @@
 
 /* API */
 
-#define E_INV_SCK 1 //internal
+#define RET_FILE 1  
 #define E_INV_FLG 2 //internal
 #define E_INV_PTH 3 //internal
 #define E_LOCK 4    // from server
@@ -25,6 +28,8 @@
 #define E_BAD_RQ 7  // from server
 #define E_ALR_LK 8
 #define E_NO_SPACE 9
+#define E_NOT_OPN 10 
+#define E_INV_SCK 11 //internal
 
 
 #define O_CREATE 1
@@ -32,6 +37,7 @@
 
 #define MAX_PATH 1024
 #define UNIX_PATH_MAX 108
+#define BUF_SIZE 2048
 
 #define OPEN_F 1
 #define READ_F 2
@@ -49,28 +55,26 @@ char __sockname[108];
 int openConnection(const char* sockname/*, int msec, const struct timespec abstime */);
 int closeConnection(const char* sockname);
 int openFile(const char* pathname, int flags);
+int writeFile(char* pathname, char * dirname);
 
 /* API */
 
 
 int main(int argc, char ** argv){
 
+    myerrno = 0;
+
     printf("apro la connessione : %d\n", openConnection(SOCKNAME));
-
    
-    printf("provo ad aprire un file : %d\n", openFile("pluto_pippo ciaio", O_CREATE | O_LOCK));
+    printf("creo un file con lock: %d\n", openFile("./test.txt", O_CREATE));
 
-    printf("provo ad aprire un file : %d\n", openFile("filepaperino", O_CREATE));
+    printf("provo ad scrivere un file : %d\n", writeFile("./test.txt", "."));
+
+    printf("creo un altro file : %d\n", openFile("./test2.txt", O_CREATE | O_LOCK));
+
+    printf("provo ad scrivere un file : %d\n", writeFile("./test2.txt", "."));
     
-    printf("provo ad aprire un file : %d\n", openFile("filedue", O_CREATE));
-
-    printf("provo ad aprire un file : %d\n", openFile("pluto_pippo ciaio", O_LOCK));
-
-
-    errno = 0;
-    printf("error %d, %d: \n", myerrno, errno);
-
-    
+    printf("myerrno: %d \n", myerrno);
 
     printf("chiudo la connesione : %d\n", closeConnection(SOCKNAME));
 
@@ -78,23 +82,81 @@ int main(int argc, char ** argv){
 
 }
 
-int openFile(const char* pth, int flags){
+int writeFile(char* pathname, char * dirname){
     
-    if(flags < 0 || flags > 2) {
+    if(pathname == NULL){
+        return E_INV_PTH;
+    }
+
+    char pth[MAX_PATH], *buf;
+    strncpy(pth, pathname, MAX_PATH);
+    pth[MAX_PATH-1] = '\0';
+    int reqType = WRITE_F, resp = 0, fd;
+
+    fd = open(pth, O_RDONLY);
+
+    buf = malloc(BUF_SIZE*sizeof(char));
+    
+    size_t len, size = 0;
+    do {
+        len = read(fd,buf + size,BUF_SIZE);
+        size += len;
+       
+        if(len == BUF_SIZE){
+            buf = realloc(buf, size + BUF_SIZE);
+        }
+
+    } while(len>0);
+    close(fd);
+
+    if(write(socketfd, &reqType, sizeof(int)) != sizeof(int)){  // scrivo il tipo di richesta
+        myerrno = errno;
+        return -1;
+    }
+
+    if(write(socketfd, &pth, MAX_PATH) != MAX_PATH){  // scrivo il path
+        myerrno = errno;
+        return -1;
+    }
+    if(write(socketfd, &size, sizeof(int)) != sizeof(int)){  // scrivo la size
+        myerrno = errno;
+        return -1;
+    }
+    if(write(socketfd, &buf, size) != size){  // scrivo il contenuto
+        myerrno = errno;
+        return -1;
+    }
+
+    if(read(socketfd, &resp, sizeof(int)) != sizeof(int)){  // leggo la risposta
+        myerrno = errno;
+        return -1;
+    }
+
+    if(resp == 0){
+        return 0;
+    }
+    else{
+        myerrno = resp;
+        return -1;
+    }
+
+
+}
+
+int openFile(const char* pathname, int flags){
+    
+    if(flags < 0 || flags > 3) {
         myerrno = E_INV_FLG;
         return -1;
     }
 
-    char pathname[MAX_PATH+1];
-    strncpy(pathname, pth, MAX_PATH);
-    pathname[MAX_PATH] = '\0';
-
-    int len = strlen(pathname) + 1; // == sizeof(pathname)
-    pathname[len] = '\0';
+    char pth[MAX_PATH];
+    strncpy(pth, pathname, MAX_PATH);
+    pth[MAX_PATH-1] = '\0';
     int reqType = OPEN_F;
     int resp = 0;
 
-    if(pathname == NULL || len == MAX_PATH){
+    if(pth == NULL){
         myerrno = E_INV_PTH;
         return -1;
     }
@@ -104,12 +166,7 @@ int openFile(const char* pth, int flags){
         return -1;
     }
 
-    if(write(socketfd, &len, sizeof(int)) != sizeof(int)){  // scrivo la lunghezza del path
-        myerrno = errno;
-        return -1;
-    }
-
-    if(write(socketfd, &pathname, len) != len){  // scrivo il path
+    if(write(socketfd, &pth, MAX_PATH) != MAX_PATH){  // scrivo il path
         myerrno = errno;
         return -1;
     }

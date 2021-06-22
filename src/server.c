@@ -50,7 +50,7 @@ void * worker(void * args){
         }
 
         //fprintf(stderr, "WORKER: tipo di richiesta letta dal fd %d: %d\n", clientFd, requestType);
-
+        fprintf(stderr, "richiesta %d\n", requestType);
         int result = fs_request_manager(fs, clientFd, requestType);
 
         // se è 0 vuol dire che ho terminato correttamente la richiesta e devo dire al manager di rimettermi in ascolto di quel fd
