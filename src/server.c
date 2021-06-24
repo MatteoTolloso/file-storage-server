@@ -50,13 +50,14 @@ void * worker(void * args){
 
         //fprintf(stderr, "WORKER: tipo di richiesta letta dal fd %d: %d\n", clientFd, requestType);
         //fprintf(stderr, "richiesta %d\n", requestType);
+        fprintf(stderr, "\nrichiesta presa in carico: %d dall'fd: %d\n", requestType, clientFd);
         int result = fs_request_manager(fs, clientFd, requestType);
-
+        fprintf(stderr, "ok\n");
         // se è 0 vuol dire che ho terminato correttamente la richiesta e devo dire al manager di rimettermi in ascolto di quel fd
         // altrimenti vuol dire che il client ha chiuso inaspettatamente durante le comunicazioni e devo dire al manager di chiudere il fd
         
         if (result == 0){
-            //fprintf(stderr, "WORKER: richiesta completa, metto il client %d nella pipe\n", clientFd);
+            fprintf(stderr, "WORKER: richiesta completa, metto il client %d nella pipe\n", clientFd);
             EXIT_ON(write(pipeWriting_fd, &clientFd, sizeof(int)), != sizeof(int));
         }
         else{
@@ -65,6 +66,14 @@ void * worker(void * args){
             EXIT_ON(write(pipeWriting_fd, &clientFd, sizeof(int)), != sizeof(int));
         }
     }
+}
+
+void * sig_form_terminal(void * _pid){
+    int pid = (int)_pid;
+    int signal;
+    scanf("%d", &signal);
+    kill(pid, signal);
+    return NULL;
 }
 
 
@@ -128,6 +137,9 @@ int main(int argc, char ** argv){
 	    EXIT_ON(pthread_create(&tidArr[i], NULL, worker, (void*)args), != 0);
     }
 
+    pthread_t sig_thread;
+    EXIT_ON(pthread_create(&sig_thread, NULL, sig_form_terminal, (void*)getpid()), != 0);
+
     /* FINE generazione dei thread worker */
 
 
@@ -148,6 +160,12 @@ int main(int argc, char ** argv){
     while(endMode==0 || activeClients > 0){  // finchè non è richiesta la terminazione o ci sono client attivi
         //fprintf(stderr, "\nendMode = %d, activeClients = %d, fd_max = %d\n", endMode, activeClients, fd_max);
         tmpset = set;
+        fprintf(stderr, "ascolto: ");
+        for (int i=0; i<=fd_max; i++){
+            if(FD_ISSET(i, &set)){
+                fprintf(stderr, "%d ", i);
+            }
+        }
         if( select(fd_max + 1, &tmpset, NULL, NULL, NULL) == -1) // attenzione all'arrivo del segnale
         { 
             if(errno == EINTR) fprintf(stderr, "MANAGER: un segnale ha interrotto la select\n");
@@ -157,7 +175,7 @@ int main(int argc, char ** argv){
         if(FD_ISSET(pipeSigReading, &tmpset)){  // è arrivato un segnale
             EXIT_ON(read(pipeSigReading, &endMode, sizeof(int)), != sizeof(int));
             
-            //fprintf(stderr, "MANAGER: valore arrivato dalla pipe dei segnali: %d\n", endMode);
+            fprintf(stderr, "MANAGER: valore arrivato dalla pipe dei segnali: %d\n", endMode);
 
             if(endMode == 1) FD_CLR(socket_fd, &set);   // terminazione lenta, non ascolto più il socket
                   
@@ -182,10 +200,10 @@ int main(int argc, char ** argv){
                     FD_SET(newConnFd, &set);
                     activeClients++;
                     if(newConnFd > fd_max) fd_max = newConnFd;
-                    //fprintf(stderr, "MANAGER: nuova connessione con fd: %d\n", newConnFd);
+                    fprintf(stderr, "MANAGER: nuova connessione con fd: %d\n", newConnFd);
                 }
                 else if(i == pipeReadig_fd){  // fd di ritorno dalla pipe
-                    //fprintf(stderr, "MANAGER: qualcosa dalla pipe\n");
+                    fprintf(stderr, "MANAGER: qualcosa dalla pipe\n");
                     int returnedConnFd;
                     EXIT_ON(read(pipeReadig_fd, &returnedConnFd, sizeof(int)), != sizeof(int));
                     
@@ -194,13 +212,13 @@ int main(int argc, char ** argv){
                             activeClients--;
                             returnedConnFd*=-1;   
                             close(returnedConnFd);
-                            //fprintf(stderr, "MANAGER: chiuso il clent con fd: %d\n", returnedConnFd);
+                            fprintf(stderr, "MANAGER: chiuso il clent con fd: %d\n", returnedConnFd);
 
                         }
                         else{   // il client ha terminato la richiesta correttamente
                             FD_SET(returnedConnFd, &set); // lo rimetto in ascolto
-                            fd_max = updatemax(set, returnedConnFd);
-                            //fprintf(stderr, "MANAGER: rimesso in ascolto del clent con fd: %d\n", returnedConnFd);
+                            if(returnedConnFd > fd_max) fd_max = returnedConnFd;
+                            fprintf(stderr, "MANAGER: rimesso in ascolto del clent con fd: %d\n", returnedConnFd);
 
                         }
                     }
@@ -221,7 +239,7 @@ int main(int argc, char ** argv){
                         FD_CLR(i, &set);
                         FD_CLR(i, &tmpset);
                         if (i == fd_max) fd_max = updatemax(set, fd_max);
-                        //fprintf(stderr, "MANAGER: metto nella coda il client con fd: %d\n", i);
+                        fprintf(stderr, "MANAGER: metto nella coda il client con fd: %d\n", i);
 
                     }
                     else{
@@ -248,6 +266,8 @@ int main(int argc, char ** argv){
     for (int i= 0; i< num_thread_worker; i++){
         EXIT_ON(pthread_join(tidArr[i], NULL), == -1);
     }
+
+     EXIT_ON(pthread_join(sig_thread, NULL), == -1);
     
     /* FINE chiusura thread */
     

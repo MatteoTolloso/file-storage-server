@@ -1,29 +1,31 @@
 #include <mylinkedlist.h>
 
-int init(struct node **head, int data)
+void init(struct node **head, int data)
 {
 	EXIT_ON(*head = (struct node *)malloc(sizeof(struct node)), == NULL);
 
 	(*head)->data = data;
 	(*head)->next = NULL;
 
-	return 0;
+	return;
 }
 
-int list_insert(struct node **head, int data)
+void list_insert(struct node **head, int data)
 {
 
     if (*head == NULL){
-        return init(head,data);
+        init(head,data);
+		return;
     }
 
 	struct node *current = *head;
 	struct node *tmp;
 
-	do {
+	while(current){
+		if(current->data == data) return;
 		tmp = current;
 		current = current->next;
-	} while (current);
+	} 
 
 	/* create a new node after tmp */
 	struct node *new_node;
@@ -34,7 +36,7 @@ int list_insert(struct node **head, int data)
 
 	tmp->next = new_node;
 
-	return 0;
+	return;
 
 }
 

@@ -9,9 +9,9 @@ typedef struct node {
 	struct node *next;
 }List_t;
 
-int init(struct node **head, int data);
+void init(struct node **head, int data);
 
-int list_insert(struct node **head, int data);
+void list_insert(struct node **head, int data);
 
 void list_remove(struct node **head, int data);
 

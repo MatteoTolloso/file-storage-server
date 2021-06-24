@@ -88,6 +88,8 @@ File_t * cacheEvict(FileSystem_t * fs, File_t * f, int flag);
 void f_startRead(File_t * file);
 void f_doneRead(File_t * file);
 void deinit_FileSystem(FileSystem_t * fs);
+int appendToFile_handler(FileSystem_t * fs,int clientFd, char * path, char * buf, int size);
+int lockFile_handler(FileSystem_t * fs, int clientFd, char * path);
 
 
 #endif /* _MYFILESYSTEM_H */

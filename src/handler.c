@@ -9,7 +9,6 @@ void ter_handler(int sig){
         if(write(pipeSigWriting, &n, sizeof(int)) != sizeof(int)){
             perror("write");
         }
-        printf("HANDLER: ho scritto sulla pipe dei segnali %d\n", n); // da rimuovere, non sicuro
         return;
     }
     if( sig == SIGHUP){
@@ -70,3 +69,4 @@ void worker_handler_installer(){
 
 
 }
+

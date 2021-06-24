@@ -3,8 +3,7 @@
 
 int fs_request_manager(FileSystem_t * fs, int clientFd, int requestType){
 
-    fprintf(stderr, "\nrichiesta presa in carico: %d\n", requestType);
-
+    sleep(3);
     switch (requestType){
         
         case OPEN_F:;{
@@ -50,15 +49,19 @@ int fs_request_manager(FileSystem_t * fs, int clientFd, int requestType){
             if (readn(clientFd, path, MAX_PATH) != MAX_PATH) return -1;  // path
             EXIT_ON(buf = malloc(size), == NULL);
             if (readn(clientFd, buf, size) != size){free(buf); return -1;} // buffer
-
+            
             return appendToFile_handler(fs,clientFd, path, buf, size);
-
-
         }
 
         break;
 
-        case LOCK_F:
+        case LOCK_F:;{
+            char path[MAX_PATH];
+            if (readn(clientFd, path, MAX_PATH) != MAX_PATH) return -1;  // path
+            fprintf(stderr, "path %s\n", path);
+
+            return lockFile_handler(fs, clientFd, path);
+        }
 
         break;
 
@@ -84,9 +87,38 @@ int fs_request_manager(FileSystem_t * fs, int clientFd, int requestType){
         break;
 
     }
-    fprintf(stderr, "richiesta terminata\n");
+    return -1;
 
-    return 0;
+}
+
+int lockFile_handler(FileSystem_t * fs, int clientFd, char * path){
+
+    EXIT_ON(pthread_mutex_lock(&fs->fs_lock), != 0);    // prendo lock fs
+
+    int retVal = 0;
+    
+    File_t * file = searchFile(fs, path);
+
+    if(file == NULL){ retVal = E_NOT_EX; goto lockFile_handler_END;}
+
+    f_startWrite(file);
+
+    if(file->lockedBy == clientFd){ f_doneWrite(file); retVal = 0 ; goto lockFile_handler_END;}
+
+    if(file->lockedBy == 0){ 
+        file->lockedBy = clientFd;
+        f_doneWrite(file);
+        retVal = 0;
+        goto lockFile_handler_END;
+    }
+
+    if(file->lockedBy != 0 && file->lockedBy != clientFd){ f_doneWrite(file); retVal = E_ALR_LK; goto lockFile_handler_END;}
+
+    retVal = 0;
+    lockFile_handler_END:
+    EXIT_ON(pthread_mutex_unlock(&fs->fs_lock), != 0);
+    if (writen(clientFd, &retVal, sizeof(int)) != sizeof(int)) return -1;
+    else return 0;
 
 }
 
@@ -107,7 +139,6 @@ int appendToFile_handler(FileSystem_t * fs,int clientFd, char * path, char * buf
     if(file->lockedBy != 0 && file->lockedBy != clientFd){f_doneRead(file); retVal = E_LOCK; goto appendToFile_handler_END;}
 
     if(size + file->size > fs->maxSize){f_doneRead(file); retVal = E_NO_SPACE; goto appendToFile_handler_END;}
-    int oldSize = file->size;
     
     f_doneRead(file);
 
@@ -132,7 +163,7 @@ int appendToFile_handler(FileSystem_t * fs,int clientFd, char * path, char * buf
     f_startWrite(file);
 
     EXIT_ON(file->cont = realloc(file->cont, file->size + size), == NULL);
-    memcpy(file->cont + file->size, buf, size);
+    memcpy((char*)file->cont + file->size, buf, size);
     file->size += size;
     f_doneWrite(file);
     fs->actSize+=size;
@@ -256,6 +287,7 @@ int openFile_handler(FileSystem_t * fs, int clientFd, char * path, int flags){
 
         File_t * newfile  = init_File(path, clientFd); 
         
+        f_startWrite(newfile);
         if(flags == 3){  // O_CREATE | O_LOCK
             newfile->lockedBy = clientFd;
         }
@@ -268,6 +300,8 @@ int openFile_handler(FileSystem_t * fs, int clientFd, char * path, int flags){
             newfile->prev = fs->lastFile;
             fs->lastFile = newfile;
         }
+        list_insert(&newfile->openedBy, clientFd);
+        f_doneWrite(newfile);
         fs->actNumFile++;
         if(fs->actNumFile > fs->maxRNumFile) fs->maxRNumFile = fs->actNumFile;        
         fprintf(stderr, "creato il file: %s\n", newfile->path);
@@ -297,6 +331,7 @@ int openFile_handler(FileSystem_t * fs, int clientFd, char * path, int flags){
            
             if(file->lockedBy == 0){
                 file->lockedBy = clientFd;
+                list_insert(&file->openedBy, clientFd);
                 f_doneWrite(file);
                 retVal = 0;   
                 goto openFile_handler_END;   
@@ -306,12 +341,9 @@ int openFile_handler(FileSystem_t * fs, int clientFd, char * path, int flags){
                 retVal = E_ALR_LK;
                 goto openFile_handler_END;   
             }
-
         }
-
-
     }
-    retVal = 0;
+    
     openFile_handler_END:
     EXIT_ON(pthread_mutex_unlock(&fs->fs_lock), != 0);   
     if (writen(clientFd, &retVal, sizeof(int)) != sizeof(int)) return -1;
@@ -351,7 +383,7 @@ File_t * cacheEvict(FileSystem_t * fs, File_t * f, int flag){
         tmp = tmp->next; 
         f_doneRead(prev);
     }
-
+    EXIT_ON("evict fail", );
     return NULL;
 }
 
