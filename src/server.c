@@ -21,9 +21,8 @@ typedef struct _worker_args{
 
 
 void * worker(void * args){
-    sigset_t fullmask;
-    sigfillset(&fullmask);
-    //EXIT_ON(pthread_sigmask(SIG_SETMASK, &fullmask, NULL), != 0); // creare una maschera apposita per i thread
+    
+    worker_handler_installer();
 
     SharedQueue_t * q = ((WorkerArgs *)(args))->q;
     int pipeWriting_fd = ((WorkerArgs *)(args))->pipeWriting_fd;
@@ -50,7 +49,7 @@ void * worker(void * args){
         }
 
         //fprintf(stderr, "WORKER: tipo di richiesta letta dal fd %d: %d\n", clientFd, requestType);
-        fprintf(stderr, "richiesta %d\n", requestType);
+        //fprintf(stderr, "richiesta %d\n", requestType);
         int result = fs_request_manager(fs, clientFd, requestType);
 
         // se è 0 vuol dire che ho terminato correttamente la richiesta e devo dire al manager di rimettermi in ascolto di quel fd
@@ -62,6 +61,7 @@ void * worker(void * args){
         }
         else{
             clientFd*=-1; // il client ha avuto problemi e lo chiudo
+            fprintf(stderr, "chiudo un client a causa di un errore\n");
             EXIT_ON(write(pipeWriting_fd, &clientFd, sizeof(int)), != sizeof(int));
         }
     }
@@ -76,7 +76,7 @@ int main(int argc, char ** argv){
 
     /* FINE installazione gestore segnali */
 
-
+    remove("mysock");
 
     /* INIZIO configurazione dei parametri dal file config.txt */
 
@@ -256,6 +256,7 @@ int main(int argc, char ** argv){
     /* INIZIO operazioni di chiusura */
 
     // dealloca il fs con tutti i file
+    deinit_FileSystem(fs);
     close(pipeReadig_fd);
     close(pipeWriting_fd);
     close(pipeSigReading);

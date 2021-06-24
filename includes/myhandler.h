@@ -13,5 +13,7 @@ extern int pipeSigWriting;
 void ter_handler(int sig);
 
 void handler_installer();
+void worker_handler_installer();
+void print_handler(int sig);
 
 #endif /* _MY_HANDLER_H */

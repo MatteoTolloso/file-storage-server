@@ -38,6 +38,8 @@
 #define MAX_PATH 1024
 #define UNIX_PATH_MAX 108
 #define BUF_SIZE 2048
+#define ENDVAL "_end"
+
 
 #define OPEN_F 1
 #define READ_F 2
@@ -63,27 +65,35 @@ int writeFile(char* pathname, char * dirname);
 int main(int argc, char ** argv){
 
     myerrno = 0;
+    errno = 0;
 
-    printf("apro la connessione : %d\n", openConnection(SOCKNAME));
+    openConnection(SOCKNAME);
    
-    printf("creo un file con lock: %d\n", openFile("./test.txt", O_CREATE));
+    openFile("./test1.txt", O_CREATE | O_LOCK);
+    fprintf(stderr,"myerrno: %d \n", myerrno);
 
-    printf("provo ad scrivere un file : %d\n", writeFile("./test.txt", "."));
-
-    printf("creo un altro file : %d\n", openFile("./test2.txt", O_CREATE | O_LOCK));
-
-    printf("provo ad scrivere un file : %d\n", writeFile("./test2.txt", "."));
+    writeFile("./test1.txt", ".");
+    fprintf(stderr,"myerrno: %d \n", myerrno);
+    //remove("./test1.txt");
     
-    printf("myerrno: %d \n", myerrno);
 
-    printf("chiudo la connesione : %d\n", closeConnection(SOCKNAME));
+    openFile("./test2.txt", O_CREATE | O_LOCK);
+    fprintf(stderr,"myerrno: %d \n", myerrno);
+
+    writeFile("./test2.txt", ".");
+    fprintf(stderr,"myerrno: %d \n", myerrno);
+    
+   
+
+    closeConnection(SOCKNAME);
 
     return 0;
 
 }
 
 int writeFile(char* pathname, char * dirname){
-    
+
+    fprintf(stderr, "writefile path %s, dir %s\n", pathname, dirname);
     if(pathname == NULL){
         return E_INV_PTH;
     }
@@ -91,60 +101,107 @@ int writeFile(char* pathname, char * dirname){
     char pth[MAX_PATH], *buf;
     strncpy(pth, pathname, MAX_PATH);
     pth[MAX_PATH-1] = '\0';
-    int reqType = WRITE_F, resp = 0, fd;
+    int reqType = WRITE_F, resp = 0;
+    FILE * inFile;
 
-    fd = open(pth, O_RDONLY);
+    if((inFile = fopen(pth, "rb")) == NULL){
+        myerrno = errno;
+        fprintf(stderr,"impossibile aprire file\n");
+        return -1;
+    }
+ 
+    // leggo il file
+    size_t size = 0;
 
-    buf = malloc(BUF_SIZE*sizeof(char));
+    fseek(inFile, 0, SEEK_END);
+    size = ftell(inFile);
+    fseek(inFile, 0, SEEK_SET);
+    EXIT_ON(buf = malloc(size), == NULL);
+    if( fread(buf, 1, size, inFile) != size){
+        fprintf(stderr, "impossibile leggere il file\n");
+        myerrno = errno;
+        free(buf);
+        return -1;
+    }
     
-    size_t len, size = 0;
-    do {
-        len = read(fd,buf + size,BUF_SIZE);
-        size += len;
-       
-        if(len == BUF_SIZE){
-            buf = realloc(buf, size + BUF_SIZE);
-        }
-
-    } while(len>0);
-    close(fd);
+    fclose(inFile);
+    fprintf(stderr, "debug contenuto file: %s, size: %ld\n", buf, size);
 
     if(write(socketfd, &reqType, sizeof(int)) != sizeof(int)){  // scrivo il tipo di richesta
         myerrno = errno;
         return -1;
     }
 
-    if(write(socketfd, &pth, MAX_PATH) != MAX_PATH){  // scrivo il path
-        myerrno = errno;
-        return -1;
-    }
     if(write(socketfd, &size, sizeof(int)) != sizeof(int)){  // scrivo la size
         myerrno = errno;
         return -1;
     }
-    if(write(socketfd, &buf, size) != size){  // scrivo il contenuto
+    if(write(socketfd, pth, MAX_PATH) != MAX_PATH){  // scrivo il path
         myerrno = errno;
         return -1;
     }
+    if(write(socketfd, buf, size) != size){  // scrivo il contenuto
+        myerrno = errno;
+        return -1;
+    }
+    free(buf);
 
     if(read(socketfd, &resp, sizeof(int)) != sizeof(int)){  // leggo la risposta
         myerrno = errno;
         return -1;
     }
+    fprintf(stderr, "risposta letta dalla pipe %d\n", resp);
 
-    if(resp == 0){
-        return 0;
+
+    // lettura file di risposta
+    
+
+    if(resp == 1){ // devo leggere N file: size path cont
+        FILE* outFile;
+        fprintf(stderr, "leggo i file di risposta\n");
+        while(1){
+
+            if(read(socketfd, &size, sizeof(int)) != sizeof(int)){ myerrno = errno; return -1;} // leggo la size, se è 0 ho finit
+            fprintf(stderr, "size di ritorno letta %ld\n", size);
+            if(size == 0){
+                return 0;
+            }
+            
+            if(read(socketfd, pth, MAX_PATH) != MAX_PATH){ myerrno = errno; return -1;} // leggo il path
+            fprintf(stderr, "path di ritorno letto %s\n", pth);
+
+            EXIT_ON(buf = malloc(size), == NULL); // alloco il buffer
+            
+            if(read(socketfd, buf, size) != size){ myerrno = errno; free(buf); return -1;} // leggo il contenuto
+            fprintf(stderr, "contenuto letto %s\n", buf);
+
+
+            if (( outFile = fopen(pth, "wb")) == NULL){
+                perror("open");
+                myerrno = errno;
+                fprintf(stderr,"impossibile aprire o creare file\n");
+            }
+            
+            if(fwrite(buf, 1, size, outFile) != size){  // scrivo contenuto su file
+                myerrno = errno;
+                free(buf);
+                fclose(outFile);
+                return -1;
+            }
+            fprintf(stderr, "scritto\n");
+
+            free(buf);
+            fclose(outFile);
+
+        }
     }
-    else{
-        myerrno = resp;
-        return -1;
-    }
-
-
+    else return 0;
 }
 
 int openFile(const char* pathname, int flags){
-    
+
+    fprintf(stderr, "openfile path %s, flag %d\n", pathname, flags);
+
     if(flags < 0 || flags > 3) {
         myerrno = E_INV_FLG;
         return -1;

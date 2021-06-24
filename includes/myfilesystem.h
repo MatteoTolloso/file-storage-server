@@ -6,6 +6,7 @@
 #include <myutil.h>
 #include <mylinkedlist.h>
 #include <unistd.h>
+#include <assert.h>
 
 #define OPEN_F 1
 #define READ_F 2
@@ -32,9 +33,11 @@
 
 
 #define MAX_PATH 1024
+#define ENDVAL "_end"
 
+#define F_SIZE 1
 typedef struct File_t{
-    char* path;
+    char path[MAX_PATH+1];
     int size;
     void * cont; //contenuto del file 
 
@@ -77,13 +80,14 @@ int writen(int fd, void *ptr, size_t n);
 int readn(int fd, void *ptr, size_t n);
 File_t * init_File(char* path, int clientFd);
 void printFs(FileSystem_t * fs);
-int writeFile_handler(FileSystem_t * fs, int clientFd, char* path, int len, char * buf, char ** retBuf, int * retBufLen);
+int writeFile_handler(FileSystem_t * fs, int clientFd, char* path, int size, char * buf);
 void f_startWrite(File_t * file);
 void f_doneWrite(File_t * file);
 void deleteFile(File_t * tmp);
-File_t * cacheEvict(FileSystem_t * fs);
+File_t * cacheEvict(FileSystem_t * fs, File_t * f, int flag);
 void f_startRead(File_t * file);
 void f_doneRead(File_t * file);
+void deinit_FileSystem(FileSystem_t * fs);
 
 
 #endif /* _MYFILESYSTEM_H */

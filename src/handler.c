@@ -17,11 +17,15 @@ void ter_handler(int sig){
         if(write(pipeSigWriting, &n, sizeof(int)) != sizeof(int)){
             perror("write");
         }
-        printf("HANDLER: ho scritto sulla pipe dei segnali %d\n", n);   // da rimuovere
         return;
     }
 
     EXIT_ON(write(1, "unknown signal", 15), <= 0);
+}
+
+void print_handler(int sig){
+    EXIT_ON(write(2, "segnale ricevuto dal worker: %d", sig), == 0);
+    return;
 }
 
 void handler_installer(){
@@ -48,8 +52,21 @@ void handler_installer(){
     EXIT_ON( sigaction(SIGQUIT, &sa, NULL), != 0);
     EXIT_ON( sigaction(SIGHUP, &sa, NULL), != 0);
 
-    sigemptyset(&complementar); // da rimuovere
     EXIT_ON(pthread_sigmask(SIG_SETMASK, &complementar, NULL), != 0);
+}
+
+void worker_handler_installer(){
+
+    sigset_t fullmask;
+    sigfillset(&fullmask);
+    EXIT_ON(pthread_sigmask(SIG_SETMASK, &fullmask, NULL), != 0);
+
+    
+    struct sigaction sa;
+    EXIT_ON(memset(&sa, 0, sizeof(struct sigaction)), == NULL);
+    
+    sa.sa_handler = print_handler;
+    EXIT_ON( sigaction(SIGPIPE, &sa, NULL), != 0);
 
 
 }
