@@ -11,7 +11,11 @@
 #include <sys/time.h>
 #include <myfilesystem.h>
 
-int pipeSigWriting; // from myconenction.h
+int pipeSigWriting; // from myhandler.h
+FILE * logFile; // from myutil.h
+
+void server_log(char * format, ... );
+char * flgToStr(int flg);
 
 typedef struct _worker_args{
     SharedQueue_t * q;
@@ -32,48 +36,31 @@ void * worker(void * args){
         
         int clientFd = SharedQueue_pop(q); // preleva un client dalla coda condivisa
         
-        //fprintf(stderr, "WORKER: ho letto dalla coda l'fd %d\n", clientFd);
-
-        if(clientFd == -1){ // il manager mi dice di terminare
-            // pulizia
-            return 0;
-        }
+        if(clientFd == -1) return 0; // il manager mi dice di terminare
 
         int requestType;
 
         if(read(clientFd, &requestType, sizeof(int)) <= 0 ){ // leggi la richesta oppure il client ha chiuso
-            //fprintf(stderr, "WORKER: il client %d ha chiuso\n", clientFd);
+            EXIT_ON(fs_request_manager(fs, clientFd, CLOSE_ALL), != 0);
             clientFd*=-1;
             EXIT_ON(write(pipeWriting_fd, &clientFd, sizeof(int)), != sizeof(int)); // il manager si occuperà di chiuderlo per evitare racecondition con i fd
             continue;
         }
 
-        //fprintf(stderr, "WORKER: tipo di richiesta letta dal fd %d: %d\n", clientFd, requestType);
-        //fprintf(stderr, "richiesta %d\n", requestType);
-        fprintf(stderr, "\nrichiesta presa in carico: %d dall'fd: %d\n", requestType, clientFd);
         int result = fs_request_manager(fs, clientFd, requestType);
-        fprintf(stderr, "ok\n");
+        
         // se è 0 vuol dire che ho terminato correttamente la richiesta e devo dire al manager di rimettermi in ascolto di quel fd
         // altrimenti vuol dire che il client ha chiuso inaspettatamente durante le comunicazioni e devo dire al manager di chiudere il fd
         
         if (result == 0){
-            fprintf(stderr, "WORKER: richiesta completa, metto il client %d nella pipe\n", clientFd);
             EXIT_ON(write(pipeWriting_fd, &clientFd, sizeof(int)), != sizeof(int));
         }
         else{
+            EXIT_ON(fs_request_manager(fs, clientFd, CLOSE_ALL), != 0);
             clientFd*=-1; // il client ha avuto problemi e lo chiudo
-            fprintf(stderr, "chiudo un client a causa di un errore\n");
             EXIT_ON(write(pipeWriting_fd, &clientFd, sizeof(int)), != sizeof(int));
         }
     }
-}
-
-void * sig_form_terminal(void * _pid){
-    int pid = (int)_pid;
-    int signal;
-    scanf("%d", &signal);
-    kill(pid, signal);
-    return NULL;
 }
 
 
@@ -87,18 +74,20 @@ int main(int argc, char ** argv){
 
     remove("mysock");
 
-    /* INIZIO configurazione dei parametri dal file config.txt */
+    /* INIZIO configurazione dei parametri dal file config.txt e del file di log */
 
     if (argc < 2) EXIT_ON("errore parametri",);
     
-    char * sck_name; int max_num_file, max_dim_storage, num_thread_worker;
+    char * sck_name, *log_path; int max_num_file, max_dim_storage, num_thread_worker;
 
-    parse(argv[1], &sck_name,  &max_num_file,  &max_dim_storage,  &num_thread_worker);
+    parse(argv[1], &sck_name,&log_path,  &max_num_file,  &max_dim_storage,  &num_thread_worker);
 
-    printf("MANAGER:\nsocket name:%s\nmax_num_file:%d\nmax_dim_storage:%d\nnum_thread_worker:%d\n", 
-            sck_name, max_num_file, max_dim_storage, num_thread_worker);
+    EXIT_ON(logFile = fopen(log_path, "w"), == NULL);
+
+    printf("MANAGER:\nsocket name:%s\nlog_path:%s\nmax_num_file:%d\nmax_dim_storage:%d\nnum_thread_worker:%d\n", 
+            sck_name,log_path, max_num_file, max_dim_storage, num_thread_worker);
     
-    /* FINE configurazione dei parametri dal file config.txt */
+    /* FINE configurazione dei parametri dal file config.txt e del file di log */
     
     
     
@@ -137,8 +126,6 @@ int main(int argc, char ** argv){
 	    EXIT_ON(pthread_create(&tidArr[i], NULL, worker, (void*)args), != 0);
     }
 
-    pthread_t sig_thread;
-    EXIT_ON(pthread_create(&sig_thread, NULL, sig_form_terminal, (void*)getpid()), != 0);
 
     /* FINE generazione dei thread worker */
 
@@ -168,25 +155,27 @@ int main(int argc, char ** argv){
         }
         if( select(fd_max + 1, &tmpset, NULL, NULL, NULL) == -1) // attenzione all'arrivo del segnale
         { 
-            if(errno == EINTR) fprintf(stderr, "MANAGER: un segnale ha interrotto la select\n");
+            if(errno == EINTR) server_log("Segnale ricevuto");
             else EXIT_ON("errore sconosciuto",);
         }
          
         if(FD_ISSET(pipeSigReading, &tmpset)){  // è arrivato un segnale
             EXIT_ON(read(pipeSigReading, &endMode, sizeof(int)), != sizeof(int));
             
-            fprintf(stderr, "MANAGER: valore arrivato dalla pipe dei segnali: %d\n", endMode);
+            if(endMode == 1) {
+                FD_CLR(socket_fd, &set);   // terminazione lenta, non ascolto più il socket
+                updatemax(set, fd_max);
+                server_log("Inizio terminazione lenta");
+            }
 
-            if(endMode == 1) FD_CLR(socket_fd, &set);   // terminazione lenta, non ascolto più il socket
-                  
-            if(endMode == 2){   // terminazione veloce // NON VA BENE 
-                FD_ZERO(&set);
-                FD_SET(pipeReadig_fd, &set);    
-                // ascolto solo la pipe che torna i fd per essere sicuro che tutte le richieste in corso terminino
-
+            if(endMode == 2){   // terminazione veloce 
+                
                 for(int i=0; i<fd_max+1; i++){  // chiudo i client connessi (ma che non hanno richieste in corso)
                     if(FD_ISSET(i, &set) && (i != pipeReadig_fd) && (i != socket_fd)) close(i);
                 }
+                FD_CLR(socket_fd, &set); // non ascolto nuove richieste di connessione
+                fd_max = updatemax(set, fd_max);
+                server_log("Inizio terminazione veloce");
             }
             continue;
         }
@@ -200,10 +189,9 @@ int main(int argc, char ** argv){
                     FD_SET(newConnFd, &set);
                     activeClients++;
                     if(newConnFd > fd_max) fd_max = newConnFd;
-                    fprintf(stderr, "MANAGER: nuova connessione con fd: %d\n", newConnFd);
+                    server_log("Nuova connessione con client %d", newConnFd);
                 }
                 else if(i == pipeReadig_fd){  // fd di ritorno dalla pipe
-                    fprintf(stderr, "MANAGER: qualcosa dalla pipe\n");
                     int returnedConnFd;
                     EXIT_ON(read(pipeReadig_fd, &returnedConnFd, sizeof(int)), != sizeof(int));
                     
@@ -212,17 +200,14 @@ int main(int argc, char ** argv){
                             activeClients--;
                             returnedConnFd*=-1;   
                             close(returnedConnFd);
-                            fprintf(stderr, "MANAGER: chiuso il clent con fd: %d\n", returnedConnFd);
-
                         }
                         else{   // il client ha terminato la richiesta correttamente
                             FD_SET(returnedConnFd, &set); // lo rimetto in ascolto
                             if(returnedConnFd > fd_max) fd_max = returnedConnFd;
-                            fprintf(stderr, "MANAGER: rimesso in ascolto del clent con fd: %d\n", returnedConnFd);
-
                         }
                     }
                     else{   // sto terminando velocemente
+                        
                         if(returnedConnFd < 0){ //il client ha chiuso
                             activeClients--;   
                             close(-1 * returnedConnFd);
@@ -239,8 +224,6 @@ int main(int argc, char ** argv){
                         FD_CLR(i, &set);
                         FD_CLR(i, &tmpset);
                         if (i == fd_max) fd_max = updatemax(set, fd_max);
-                        fprintf(stderr, "MANAGER: metto nella coda il client con fd: %d\n", i);
-
                     }
                     else{
                         close(i);
@@ -251,8 +234,7 @@ int main(int argc, char ** argv){
         }
     }
 
-    fprintf(stderr, "MANAGER: uscito dal ciclo di gestione\n");
-
+    server_log("Uscito dal ciclo manager");
     /* FINE gestione delle richieste */
 
 
@@ -267,7 +249,6 @@ int main(int argc, char ** argv){
         EXIT_ON(pthread_join(tidArr[i], NULL), == -1);
     }
 
-     EXIT_ON(pthread_join(sig_thread, NULL), == -1);
     
     /* FINE chiusura thread */
     
@@ -276,25 +257,38 @@ int main(int argc, char ** argv){
     /* INIZIO operazioni di chiusura */
 
     // dealloca il fs con tutti i file
+        
     deinit_FileSystem(fs);
     close(pipeReadig_fd);
     close(pipeWriting_fd);
     close(pipeSigReading);
     close(pipeSigWriting);
-    unlink(sck_name);
+    remove(sck_name);
     free(sck_name);
+    fclose(logFile);
+    free(log_path);
     free(tidArr);
     free(args);
+    
     free(ready_clients->set);
     pthread_mutex_destroy(&ready_clients->lock);
     pthread_cond_destroy(&ready_clients->full);
     pthread_cond_destroy(&ready_clients->empty);
     free(ready_clients);
-    close(pipeReadig_fd);
-    close(pipeWriting_fd);
+    
+    
 
     /* FINE operazioni di chiusura */
 
     return 0;
 
+}
+
+void server_log(char * format, ... ){
+    va_list arglist;
+    va_start(arglist, format);
+    vfprintf(logFile, format, arglist);
+    fprintf(logFile, "\n");
+    fflush(logFile);
+    va_end(arglist);
 }

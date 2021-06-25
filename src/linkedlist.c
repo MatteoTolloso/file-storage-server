@@ -65,6 +65,8 @@ int list_mem(struct node **head, int data)
 
 void list_remove(struct node **head, int data)
 {
+	if(!list_mem(head, data)) return;
+	
 	struct node *current = *head;
 	struct node *prev = NULL;
 
@@ -101,10 +103,10 @@ void list_remove(struct node **head, int data)
 void list_deinit(struct node **head)
 {
 	struct node *node = *head;
-	do {
+	while (node) {
 		struct node *tmp;
 		tmp = node;
 		node = node->next;
 		free(tmp);
-	} while (node);
+	}
 }

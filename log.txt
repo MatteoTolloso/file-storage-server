@@ -1,0 +1,8 @@
+Nuova connessione con client 9
+il client 9 ha richiesto una open sul file ./test2.txt con flag 3
+il client 9 ha richiesto una write sul file ./test2.txt di 4 byte
+il client 9 ha completato la richiesta
+chiudo il client 9 e tutti i file associati
+Segnale ricevuto
+Inizio terminazione veloce
+Uscito dal ciclo manager

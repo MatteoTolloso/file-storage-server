@@ -59,6 +59,8 @@ int openFile(const char* pathname, int flags);
 int writeFile(char* pathname, char * dirname);
 int appendToFile(char * pathname, void * buf, size_t size, char * dirname);
 int lockFile(char * pathname);
+int unlockFile(char * pathname);
+int closeFile(char * pathname);
 
 /* API */
 
@@ -76,9 +78,14 @@ int main(int argc, char ** argv){
     writeFile("./test2.txt", ".");
     fprintf(stderr,"myerrno: %d \n", myerrno);
 
+    closeFile("./test2.txt");
+
+
     myerrno = 0;
     lockFile("./test2.txt");
     fprintf(stderr,"myerrno: %d \n", myerrno);
+
+    unlockFile("test2.txt");
    
    /*
     openFile("./test1.txt", O_CREATE | O_LOCK);
@@ -95,6 +102,71 @@ int main(int argc, char ** argv){
     closeConnection(SOCKNAME);
     */
     return 0;
+
+}
+
+int closeFile(char * pathname){
+    if(pathname == NULL){ myerrno = E_INV_PTH; return -1;}
+
+    char pth[MAX_PATH];
+    strncpy(pth, pathname, MAX_PATH);
+    pth[MAX_PATH-1] = '\0';
+    int reqType = CLOSE_F, resp = 0;
+
+    if(write(socketfd, &reqType, sizeof(int)) != sizeof(int)){  // scrivo il tipo di richesta
+        myerrno = errno;
+        return -1;
+    }
+
+    if(write(socketfd, pth, MAX_PATH) != MAX_PATH){  // scrivo il path
+        myerrno = errno;
+        return -1;
+    }
+
+    if(read(socketfd, &resp, sizeof(int)) != sizeof(int)){  // leggo la risposta
+        myerrno = errno;
+        return -1;
+    }
+
+    if(resp == 0){
+        return 0;
+    }
+    else{
+        myerrno = resp;
+        return -1;
+    }
+
+}
+int unlockFile(char * pathname){
+    if(pathname == NULL){ myerrno = E_INV_PTH; return -1;}
+
+    char pth[MAX_PATH];
+    strncpy(pth, pathname, MAX_PATH);
+    pth[MAX_PATH-1] = '\0';
+    int reqType = UNLOCK_F, resp = 0;
+
+    if(write(socketfd, &reqType, sizeof(int)) != sizeof(int)){  // scrivo il tipo di richesta
+        myerrno = errno;
+        return -1;
+    }
+
+    if(write(socketfd, pth, MAX_PATH) != MAX_PATH){  // scrivo il path
+        myerrno = errno;
+        return -1;
+    }
+
+    if(read(socketfd, &resp, sizeof(int)) != sizeof(int)){  // leggo la risposta
+        myerrno = errno;
+        return -1;
+    }
+
+    if(resp == 0){
+        return 0;
+    }
+    else{
+        myerrno = resp;
+        return -1;
+    }
 
 }
 
@@ -276,12 +348,13 @@ int writeFile(char* pathname, char * dirname){
         myerrno = errno;
         return -1;
     }
-    fprintf(stderr, "risposta letta dalla pipe %d\n", resp);
 
+    if(resp == 0){
+        return 0;
+    }
 
     // lettura file di risposta
     
-
     if(resp == 1){ // devo leggere N file: size path cont
         FILE* outFile;
         fprintf(stderr, "leggo i file di risposta\n");
@@ -321,7 +394,10 @@ int writeFile(char* pathname, char * dirname){
 
         }
     }
-    else return 0;
+    else {
+        myerrno = resp;
+        return -1;
+    }
 }
 
 int openFile(const char* pathname, int flags){

@@ -17,6 +17,7 @@
 #define UNLOCK_F 7
 #define CLOSE_F 8
 #define REMOVE_F 9
+#define CLOSE_ALL 10
 
 //messages server-client
 #define RET_FILE 1  
@@ -90,6 +91,10 @@ void f_doneRead(File_t * file);
 void deinit_FileSystem(FileSystem_t * fs);
 int appendToFile_handler(FileSystem_t * fs,int clientFd, char * path, char * buf, int size);
 int lockFile_handler(FileSystem_t * fs, int clientFd, char * path);
+int closeAll_handler(FileSystem_t * fs, int clientFd);
+int unlockFile_handler(FileSystem_t * fs, int clientFd, char * path);
+int closeFile_handler(FileSystem_t * fs, int clientFd, char * path);
+int removeFile_handler(FileSystem_t * fs, int clientFd, char * path);
 
 
 #endif /* _MYFILESYSTEM_H */

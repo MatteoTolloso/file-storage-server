@@ -2,7 +2,7 @@
 #include <myparser.h>
 
 
-int parse(char* configpath, char ** socket_name, int * max_num_file, int * max_dim_storage, int * num_thread_worker){
+int parse(char* configpath, char** socket_name, char ** logpath, int * max_num_file, int * max_dim_storage, int * num_thread_worker){
 
     FILE * fptr;
     EXIT_ON( fptr = fopen(configpath, "r"), ==  NULL);
@@ -51,6 +51,12 @@ int parse(char* configpath, char ** socket_name, int * max_num_file, int * max_d
 
         if (strncmp(key, ARG_4, strnlen(ARG_4, PARSE_BUF_DIM)) == 0){ // gestisco num_thread_worker 
             *num_thread_worker = atoi(value);
+            continue;
+        }
+        if (strncmp(key, ARG_5, strnlen(ARG_1, PARSE_BUF_DIM)) == 0){ // gestisco log_file_path  
+            EXIT_ON(*logpath = malloc(PARSE_BUF_DIM), == NULL);
+            EXIT_ON(memset(*logpath, '\0', PARSE_BUF_DIM), == NULL);
+            EXIT_ON(strncpy(*logpath, value, PARSE_BUF_DIM), == NULL);
             continue;
         }
 
