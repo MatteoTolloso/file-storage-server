@@ -146,13 +146,7 @@ int main(int argc, char ** argv){
 
     while(endMode==0 || activeClients > 0){  // finchè non è richiesta la terminazione o ci sono client attivi
         //fprintf(stderr, "\nendMode = %d, activeClients = %d, fd_max = %d\n", endMode, activeClients, fd_max);
-        tmpset = set;
-        fprintf(stderr, "ascolto: ");
-        for (int i=0; i<=fd_max; i++){
-            if(FD_ISSET(i, &set)){
-                fprintf(stderr, "%d ", i);
-            }
-        }
+        tmpset = set;        
         if( select(fd_max + 1, &tmpset, NULL, NULL, NULL) == -1) // attenzione all'arrivo del segnale
         { 
             if(errno == EINTR) server_log("Segnale ricevuto");
@@ -165,7 +159,7 @@ int main(int argc, char ** argv){
             if(endMode == 1) {
                 FD_CLR(socket_fd, &set);   // terminazione lenta, non ascolto più il socket
                 updatemax(set, fd_max);
-                server_log("Inizio terminazione lenta");
+                server_log("inizio terminazione lenta");
             }
 
             if(endMode == 2){   // terminazione veloce 
@@ -175,7 +169,7 @@ int main(int argc, char ** argv){
                 }
                 FD_CLR(socket_fd, &set); // non ascolto nuove richieste di connessione
                 fd_max = updatemax(set, fd_max);
-                server_log("Inizio terminazione veloce");
+                server_log("inizio terminazione veloce");
             }
             continue;
         }
@@ -189,7 +183,7 @@ int main(int argc, char ** argv){
                     FD_SET(newConnFd, &set);
                     activeClients++;
                     if(newConnFd > fd_max) fd_max = newConnFd;
-                    server_log("Nuova connessione con client %d", newConnFd);
+                    server_log("nuova connessione con client %d", newConnFd);
                 }
                 else if(i == pipeReadig_fd){  // fd di ritorno dalla pipe
                     int returnedConnFd;
