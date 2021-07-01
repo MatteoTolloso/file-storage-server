@@ -96,6 +96,7 @@ int unlockFile_handler(FileSystem_t * fs, int clientFd, char * path);
 int closeFile_handler(FileSystem_t * fs, int clientFd, char * path);
 int removeFile_handler(FileSystem_t * fs, int clientFd, char * path);
 int readFile_handler(FileSystem_t * fs, int clientFd, char * path);
+int readNFiles_handler(FileSystem_t * fs, int clientFd, int numFile);
 
 
 #endif /* _MYFILESYSTEM_H */

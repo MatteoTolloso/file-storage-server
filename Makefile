@@ -1,9 +1,12 @@
 
 flags = -g -O3 -Wall -I ./includes -std=c99 -pedantic #-Werror
 
-obj = ./obj/server.o ./obj/parser.o ./obj/sharedqueue.o ./obj/connection.o ./obj/handler.o ./obj/filesystem.o ./obj/linkedlist.o
+obj = ./obj/server.o ./obj/parser.o ./obj/sharedqueue.o ./obj/connection.o \
+	./obj/handler.o ./obj/filesystem.o ./obj/linkedlist.o 
+	
 
-src = ./src/server.c ./src/parser.c ./src/sharedqueue.c ./src/connection.c ./src/handler.c ./src/filesystem.c ./src/linkedlist.c
+src = ./src/server.c ./src/parser.c ./src/sharedqueue.c ./src/connection.c \
+	./src/handler.c ./src/filesystem.c ./src/linkedlist.c 
 
 includes = ./includes/myconnection.h ./includes/myhandler.h \
 			./includes/myparser.h ./includes/mysharedqueue.h \
@@ -25,8 +28,8 @@ all: ./server ./client
 ./server: $(obj)
 	gcc $(obj) -o $@ -pthread
 
-./client: ./obj/client.o
-	gcc $< -o $@ -pthread
+./client: ./obj/client.o ./obj/serverApi.o
+	gcc $^ -o $@ -pthread
 
 #obj file for server
 
@@ -53,11 +56,15 @@ $(objpath)linkedlist.o: $(srcpath)linkedlist.c $(includes)
 
 #obj file for client
 
-./obj/client.o: ./src/client.c
+$(objpath)client.o: $(srcpath)client.c $(includes)
 	gcc $< $(flags) -c -o $@ 
 
+$(objpath)serverApi.o: $(srcpath)serverApi.c $(includes)
+	gcc $< $(flags) -c -o $@ 
+
+
 cleanall	: 
-	rm -f $(obj) ./server
+	rm -f $(obj) $(objpath)client.o $(objpath)serverApi.o ./server ./client
 
 test	:
 	valgrind --leak-check=full --show-leak-kinds=all ./server config.txt 

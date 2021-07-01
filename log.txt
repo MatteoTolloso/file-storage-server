@@ -1,17 +1,10 @@
 nuova connessione con client 9
-il client 9 ha richiesto una open sul file ./test2.txt con flag 3
+il client 9 ha richiesto una open sul file config.txt con flag 3
 il client 9 ha completato la richiesta. Valore ritornato: 0
-il client 9 ha richiesto una write sul file ./test2.txt di 4 byte
+il client 9 ha richiesto una write sul file config.txt di 105 byte
 il client 9 ha completato la richiesta. Valore ritornato: 0
-il client 9 ha richiesto una open sul file ./test1.txt con flag 3
+il client 9 ha richiesto una open sul file ./src/client.c con flag 3
 il client 9 ha completato la richiesta. Valore ritornato: 0
-il client 9 ha richiesto una write sul file ./test1.txt di 5 byte
-invio al client 9 il file ./test2.txt di 4 byte
-file ./test2.txt eliminato dal server
-il client 9 ha completato la richiesta. Valore ritornato: 0
-il client 9 ha richiesto una append sul file ./test1.txt di 4 byte
+il client 9 ha richiesto una write sul file ./src/client.c di 6168 byte
 il client 9 ha completato la richiesta. Valore ritornato: 9
 chiudo il client 9 e tutti i file aperti
-Segnale ricevuto
-inizio terminazione veloce
-Uscito dal ciclo manager
