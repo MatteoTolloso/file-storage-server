@@ -8,3 +8,6 @@ il client 9 ha completato la richiesta. Valore ritornato: 0
 il client 9 ha richiesto una write sul file ./src/client.c di 6168 byte
 il client 9 ha completato la richiesta. Valore ritornato: 9
 chiudo il client 9 e tutti i file aperti
+Segnale ricevuto
+inizio terminazione lenta
+Uscito dal ciclo manager

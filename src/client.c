@@ -11,8 +11,8 @@
 
 extern int socketfd, myerrno;
 extern char __sockname[UNIX_PATH_MAX];
-int foundP = 0;
-char returnDir[MAX_PATH];
+char returnDir[MAX_PATH] = "";
+char readDir[MAX_PATH] = "";
 
 void listfile(const char nomedir[], int * n);
 int isdot(const char dir[]) ;
@@ -20,113 +20,213 @@ int is_comand(char * str);
 char to_comand(char * str);
 void send_dir(char * str);
 void send_file(char str[]);
+void read_file(char * str);
 
 int main(int argc, char ** argv){
 
     if(argc == 1){return 0;}
 
-    int foundF = 0, i = 1;
+    int foundf = 0, i = 1, foundW = 0, foundp = 0, 
+        foundD = 0, foundr = 0, foundw = 0, foundd = 0, foundR =0;
     char comand;
 
-    while (i < argc){
+    while (i < argc){   // primo ciclo di controllo
         if(is_comand(argv[i])){
             comand = to_comand(argv[i]);
-
             switch (comand)
             {
             case 'h':;{
-                printf(HELP);
+                printf(HELP); 
                 return 0;
                 break;
             }
             case 'p':;{
-                foundP = 1;
+                foundp++;
                 break;
             }
             case 'f':;{
-                if(foundF == 1){    // avevo già incontrato prima
-                    printf("due socket inseriti\n");
-                    printf(HELP);
+                foundf++;
+                if( argv[i+1] == NULL || is_comand(argv[i+1])){
+                    fprintf(stderr, "opzione -f non usata correttamente\n");
                     return 0;
                 }
-                else{
-                    foundF = 1;
-                    if( argv[i+1] != NULL && !is_comand(argv[i+1])){    // il parametro successivo è un nome valido
-                        EXIT_ON(openConnection(argv[i+1]), != 0);
-                        i++; // devo saltare un ulteriore parametro
-                    }
-                    else{
-                        printf("errore nome socket");
-                        printf(HELP);
-                        return 0;
-                    }
+            }
+            case 'w':;{
+                foundw = 1;
+                if( argv[i+1] == NULL || is_comand(argv[i+1])){
+                    fprintf(stderr, "opzione -w non usata correttamente\n");
+                    return 0;
                 }
                 break;
             }
-
-            case 'w':;{
-                if(argv[i+1] != NULL && !is_comand(argv[i+1])){
-                    send_dir(argv[i+1]);
-                    i++;
-                }
-                else{
-                    printf("errore cartella");
-                    printf(HELP);
+            case 'W':;{
+                foundW = 1;
+                if( argv[i+1] == NULL || is_comand(argv[i+1])){
+                    fprintf(stderr, "opzione -W non usata correttamente\n");
                     return 0;
                 }
+            }
+            case 'D':;{ 
+                foundD = 1;
+                if( argv[i+1] == NULL || is_comand(argv[i+1])){
+                    fprintf(stderr, "opzione -D non usata correttamente\n");
+                    return 0;
+                }
+                break;
+            }
+            case 'r':;{
+                foundr = 1;
+                if( argv[i+1] == NULL || is_comand(argv[i+1])){
+                    fprintf(stderr, "opzione -r non usata correttamente\n");
+                    return 0;
+                }
+                break;
+            }
+            case 'd':;{
+                foundd = 1;
+                if( argv[i+1] == NULL || is_comand(argv[i+1])){
+                    fprintf(stderr, "opzione -d non usata correttamente\n");
+                    return 0;
+                }
+            }
+            case 'R':;{
+                foundR = 1;
+                if( argv[i+1] == NULL || is_comand(argv[i+1])){
+                    fprintf(stderr, "opzione -R non usata correttamente\n");
+                    return 0;
+                }
+            }
+            }
+        }
+        i++;
+    }
+
+    if(foundD == 1 && (foundW + foundw) <= 0){
+        fprintf(stderr, "opzione -D non usata correttamente\n");
+        return 0;
+    }
+
+    if(foundd == 1 && (foundR + foundr) <= 0){
+        fprintf(stderr, "opzione -d non usata correttamente\n");
+        return 0;
+    }
+
+    if(foundp > 1){
+        fprintf(stderr, "opzione -p non usata correttamente\n");
+        return 0;
+    }
+    
+    if(foundf != 1){
+        fprintf(stderr, "opzione -f non usata correttamente\n");
+        return 0;
+    }
+    
+    i = 1;
+    while (i < argc){
+        
+        comand = to_comand(argv[i]);
+        switch (comand)
+        {
+        
+            case 'f':;{  
+                PIE(openConnection(argv[i+1]));
+                i++; // devo saltare un ulteriore parametro
+                
+                break;
+            }
+
+            case 'w':;{   
+                send_dir(argv[i+1]);
+                i++;
+                break;
 
             }
 
             case 'W':;{
-                if(argv[i+1] != NULL && !is_comand(argv[i+1])){
-                    send_file(argv[i+1]);
-                    i++;
-                }
-                else{
-                    printf("errore file");
-                    printf(HELP);
-                    return 0;
-                }
+                send_file(argv[i+1]);
+                i++;
+                break;
             }
 
+            case 'D':;{ // testare questa opzione
+                strcpy(returnDir, argv[i+1]);
+                i++;
+                break;
             }
-        }
-        else{
-            printf("comando atteso");
-            printf(HELP);
-            return 0;
-        }
 
+            case 'r':;{
+                read_file(argv[i+1]);
+                i++;
+                
+                break;
+            }
+            case 'd':;{
+                strcpy(readDir, argv[i+1]);
+                break;
+            }
+
+            case 'r':;{
+                read_file(argv[i+1]);
+                break;
+            }
+        }   
+            
         i++;
     }
-
-
+    
     return 0;
 
 }
 
-void send_file(char str[]){ // ciao,pippo
-
+void read_file(char * str){
+    
     char file[MAX_PATH];
     int pos =0;
 
+    // spostarsi nella cartella dove mettere i file e scrivere il buffer della read nel file (creato)
+    
     while(1){
+        
         if(str[pos] == '\0'){
             strncpy(file, str, pos +1);
-            openFile(file, O_CREATE | O_LOCK);
-            writeFile(file, returnDir);
-            printf("file: %s ", file);
+            PIE(openFile(file, O_CREATE | O_LOCK));
+            PIE(writeFile(file, returnDir));
             return;
         }
         else if(str[pos] == ','){
             str[pos] = '\0';
             strncpy(file, str, pos +1);
-            openFile(file, O_CREATE | O_LOCK);
-            writeFile(file, returnDir);
+            PIE(openFile(file, O_CREATE | O_LOCK));
+            PIE(writeFile(file, returnDir));
             str = str + pos + 1;
             pos = 0;
-            printf("file: %s ", file);
+        }
+        else{
+            pos++;
+        }
+    }
+}
 
+void send_file(char str[]){ 
+
+    char file[MAX_PATH];
+    int pos =0;
+
+    while(1){
+        
+        if(str[pos] == '\0'){
+            strncpy(file, str, pos +1);
+            PIE(openFile(file, O_CREATE | O_LOCK));
+            PIE(writeFile(file, returnDir));
+            return;
+        }
+        else if(str[pos] == ','){
+            str[pos] = '\0';
+            strncpy(file, str, pos +1);
+            PIE(openFile(file, O_CREATE | O_LOCK));
+            PIE(writeFile(file, returnDir));
+            str = str + pos + 1;
+            pos = 0;
         }
         else{
             pos++;
@@ -177,8 +277,8 @@ void listfile(const char nomedir[], int * n) {
         else {
 
             (*n)--;
-            openFile(filename, O_CREATE | O_LOCK);   // creo il file nel server
-            writeFile(filename, returnDir); // scrivo il file
+            PIE(openFile(filename, O_CREATE | O_LOCK));   // creo il file nel server
+            PIE(writeFile(filename, returnDir)); // scrivo il file
         
             fprintf(stdout, "file: %s, %d\n", filename, *n);		
         }
@@ -238,7 +338,7 @@ void send_dir(char * str){
     // controllo che l'argomaneto sia una directory
     struct stat statbuf;
     if (stat(dirname,&statbuf)!= 0 || !S_ISDIR(statbuf.st_mode)){
-	    fprintf(stderr, "%s non e' una directory", dirname);
+	    fprintf(stderr, " \"%s\" non e' una directory\n", dirname);
         printf(HELP);
         return;
     }    

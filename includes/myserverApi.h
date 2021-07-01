@@ -15,17 +15,19 @@
 #include <stdio.h>
 
 #define END_RET_FILE -1
+#define SUCCESS 0
 #define RET_FILE 1  
-#define E_INV_FLG 2 //internal
-#define E_INV_PTH 3 //internal
-#define E_LOCK 4    // from server
-#define E_NOT_EX 5  // from server
-#define E_ALR_EX 6      // from server
-#define E_BAD_RQ 7  // from server
-#define E_ALR_LK 8
-#define E_NO_SPACE 9
-#define E_NOT_OPN 10 
-#define E_INV_SCK 11 //internal
+#define E_INV_FLG 140 //internal
+#define E_INV_PTH 141 //internal
+#define E_LOCK 142    // from server
+#define E_NOT_EX 143  // from server
+#define E_ALR_EX 144      // from server
+#define E_BAD_RQ 145  // from server
+#define E_ALR_LK 146
+#define E_NO_SPACE 147
+#define E_NOT_OPN 148 
+#define E_INV_SCK 149 //internal
+#define E_NOT_CON 150
 
 
 #define O_CREATE 1
@@ -58,5 +60,11 @@ int removeFile(char * pathname);
 int readFile(char * pathname, void ** buf, size_t * size);
 void myperror(const char * str);
 //manca readnfiles
+
+#define PIE(exp) \
+        if( (exp) == -1){ \
+            myperror(#exp);\
+        }\
+    
 
 #endif /*_MYSERVERAPI_H*/ 

@@ -1,12 +1,18 @@
 
 #include <myserverApi.h>
 
-int socketfd, myerrno;
+int socketfd = 0, myerrno;
 char __sockname[UNIX_PATH_MAX];
 
 extern int foundP;
 
 int readFile(char * pathname, void ** buf, size_t * size){
+
+
+    if(socketfd == 0){
+        myerrno = E_NOT_CON;
+        return -1;
+    }
     
     if(pathname == NULL){ myerrno = E_INV_PTH; return -1;}
 
@@ -70,6 +76,12 @@ int readFile(char * pathname, void ** buf, size_t * size){
 }
 
 int removeFile(char * pathname){
+
+    if(socketfd == 0){
+        myerrno = E_NOT_CON;
+        return -1;
+    }
+
     if(pathname == NULL){ myerrno = E_INV_PTH; return -1;}
 
     char pth[MAX_PATH];
@@ -103,6 +115,12 @@ int removeFile(char * pathname){
 }
 
 int closeFile(char * pathname){
+
+    if(socketfd == 0){
+        myerrno = E_NOT_CON;
+        return -1;
+    }
+
     if(pathname == NULL){ myerrno = E_INV_PTH; return -1;}
 
     char pth[MAX_PATH];
@@ -136,6 +154,12 @@ int closeFile(char * pathname){
 }
 
 int unlockFile(char * pathname){
+
+    if(socketfd == 0){
+        myerrno = E_NOT_CON;
+        return -1;
+    }
+
     if(pathname == NULL){ myerrno = E_INV_PTH; return -1;}
 
     char pth[MAX_PATH];
@@ -169,6 +193,12 @@ int unlockFile(char * pathname){
 }
 
 int lockFile(char * pathname){
+
+    if(socketfd == 0){
+        myerrno = E_NOT_CON;
+        return -1;
+    }
+
     if(pathname == NULL){ myerrno = E_INV_PTH; return -1;}
 
     char pth[MAX_PATH];
@@ -202,6 +232,11 @@ int lockFile(char * pathname){
 }
 
 int appendToFile(char * pathname, void * buf, size_t size, char * dirname){
+
+    if(socketfd == 0){
+        myerrno = E_NOT_CON;
+        return -1;
+    }
     
     if(pathname == NULL){ myerrno = E_INV_PTH; return -1;}
     if(buf == NULL || size < 1){ myerrno = E_BAD_RQ; return -1;}
@@ -291,6 +326,11 @@ int appendToFile(char * pathname, void * buf, size_t size, char * dirname){
 }
 
 int writeFile(char* pathname, char * dirname){
+
+    if(socketfd == 0){
+        myerrno = E_NOT_CON;
+        return -1;
+    }
 
     if(pathname == NULL){
         myerrno = E_INV_PTH;
@@ -408,6 +448,11 @@ int writeFile(char* pathname, char * dirname){
 
 int openFile(const char* pathname, int flags){
 
+    if(socketfd == 0){
+        myerrno = E_NOT_CON;
+        return -1;
+    }
+    
     if(flags < 0 || flags > 3) {
         myerrno = E_INV_FLG;
         return -1;
@@ -488,18 +533,24 @@ int openConnection(const char* sockname /*, int msec, const struct timespec abst
 
 int closeConnection(const char* sockname){
 
+    if(socketfd == 0){
+        myerrno = E_NOT_CON;
+        return -1;
+    }
+
     if (sockname == NULL || (strncmp(__sockname, sockname, UNIX_PATH_MAX) != 0)) {
         myerrno = E_INV_SCK;
         return -1;
     }
     close(socketfd);
+    socketfd = 0;
     return 0;
 }
 
 void myperror(const char * str){
-    if(myerrno < 100){
+    if(myerrno >= 140){
         fprintf(stderr, "errore %d: ", myerrno);
-        fprintf(stderr, str);
+        fprintf(stderr, "%s\n", str);
     }
     else{
         perror(str);
