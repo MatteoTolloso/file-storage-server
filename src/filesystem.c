@@ -127,20 +127,27 @@ int readNFiles_handler(FileSystem_t * fs, int clientFd, int numFile){
 
     // size, path, cont
 
-    if(numFile < 0) numFile = fs->actNumFile;
+    if(numFile <= 0) numFile = fs->actNumFile;
     if(numFile > fs->actNumFile) numFile = fs->actNumFile;
 
     int retVal = 0, cont = 0;
 
     File_t * tmp = fs->firstFile, *next;
 
+    
     retVal = 1; // seganala che stanno per arrivare file
     if (writen(clientFd, &retVal, sizeof(int)) != sizeof(int)) {retVal = E_BAD_RQ; goto readNFiles_handler_END;} 
 
+
     while(cont < numFile ){
         f_startRead(tmp);
+        if(tmp->lockedBy != 0 && tmp->lockedBy != clientFd){
+            f_doneRead(tmp);
+            continue;
+        }
         server_log("invio al client %d il file %s di %d byte", clientFd, tmp->path, tmp->size); 
         if (writen(clientFd, &tmp->size, sizeof(int)) != sizeof(int)) {f_doneRead(tmp), retVal = E_BAD_RQ; goto readNFiles_handler_END;}
+        if (writen(clientFd, &tmp->path, MAX_PATH) != MAX_PATH) {f_doneRead(tmp), retVal = E_BAD_RQ; goto readNFiles_handler_END;}
         if (writen(clientFd, tmp->cont, tmp->size) != tmp->size) {f_doneRead(tmp), retVal = E_BAD_RQ; goto readNFiles_handler_END;}
         next = tmp->next;
         f_doneRead(tmp);
@@ -193,6 +200,7 @@ int readFile_handler(FileSystem_t * fs, int clientFd, char * path){
     retVal = 0;
     readFile_handler_END:
     server_log("il client %d ha completato la richiesta. Valore ritornato: %d", clientFd, retVal);
+    EXIT_ON(pthread_mutex_unlock(&fs->fs_lock), != 0);
     if (writen(clientFd, &retVal, sizeof(int)) != sizeof(int)) return -1;
     else return 0;
 
@@ -212,7 +220,7 @@ int removeFile_handler(FileSystem_t * fs, int clientFd, char * path){   // da te
 
     f_startWrite(file);
 
-    if(file->lockedBy != clientFd){f_doneWrite(file); retVal = E_LOCK; goto removeFile_handler_END;}
+    if(file->lockedBy != 0 && file->lockedBy != clientFd){f_doneWrite(file); retVal = E_LOCK; goto removeFile_handler_END;}
 
     fs->actSize -= file->size;
     fs->actNumFile--;
@@ -285,12 +293,13 @@ int unlockFile_handler(FileSystem_t * fs, int clientFd, char * path){
 
     if(!list_mem(&file->openedBy, clientFd)){ f_doneWrite(file), retVal = E_NOT_OPN; goto unlockFile_handler_END;}
 
-    if(file->lockedBy != clientFd){ f_doneWrite(file); retVal = E_LOCK ; goto unlockFile_handler_END;}
+    if(file->lockedBy != 0 && file->lockedBy != clientFd){ f_doneWrite(file); retVal = E_LOCK ; goto unlockFile_handler_END;}
 
     if(file->lockedBy == 0){ f_doneWrite(file), retVal = 0; goto unlockFile_handler_END;}
 
     file->lockedBy = 0;
 
+    f_doneWrite(file);
 
     retVal = 0;
     unlockFile_handler_END:

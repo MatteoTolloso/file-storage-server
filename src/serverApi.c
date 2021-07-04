@@ -6,6 +6,84 @@ char __sockname[UNIX_PATH_MAX];
 
 extern int foundP;
 
+int readNFiles(int n, char * dirname){
+
+    if(dirname == NULL){
+        myerrno = E_BAD_RQ;
+        return -1;
+    }
+
+    char pth[MAX_PATH], pthToSave[MAX_PATH];
+    
+    int reqType = READ_N_F, resp = 0;
+
+    if(write(socketfd, &reqType, sizeof(int)) != sizeof(int)){  // scrivo il tipo di richesta
+        myerrno = errno;
+        return -1;
+    }
+    
+    if(write(socketfd, &n, sizeof(int)) != sizeof(int)){  // scrivo il numero di file
+        myerrno = errno;
+        return -1;
+    }
+
+    if(read(socketfd, &resp, sizeof(int)) != sizeof(int)){  // leggo la risposta
+        myerrno = errno;
+        return -1;
+    }
+    if(resp != 1){ // c'è stato un errore (l'unica risposta corretta è 1)
+        myerrno = resp;
+        return -1;
+    }
+
+    FILE* outFile; int size; void * buf;
+    while(1){
+
+        if(read(socketfd, &size, sizeof(int)) != sizeof(int)){ myerrno = errno; return -1;} // leggo la size, se è -1 ho finito
+        if(size == -1){
+            break;
+        }
+        
+        if(read(socketfd, pth, MAX_PATH) != MAX_PATH){ myerrno = errno; return -1;} // leggo il path
+
+        EXIT_ON(buf = malloc(size), == NULL); // alloco il buffer
+        
+        if(read(socketfd, buf, size) != size){ myerrno = errno; free(buf); return -1;} // leggo il contenuto
+        
+        strcpy(pthToSave, dirname);
+        strcat(pthToSave, pth + onlyName(pth) );
+        if (( outFile = fopen(pthToSave, "wb")) == NULL){
+            myerrno = errno;
+            return -1;
+        }
+        
+        if(fwrite(buf, 1, size, outFile) != size){  // scrivo contenuto su file
+            myerrno = errno;
+            free(buf);
+            fclose(outFile);
+            return -1;
+        }
+
+        free(buf);
+        fclose(outFile);
+    }
+
+    if(read(socketfd, &resp, sizeof(int)) != sizeof(int)){  // leggo la risposta finale 
+        myerrno = errno;
+        return -1;
+    }
+
+    if(resp != 0){
+        myerrno = resp;
+        return -1;
+    }
+    else{
+        return 0;
+    }
+
+
+}
+
 int readFile(char * pathname, void ** buf, size_t * size){
 
 
@@ -37,7 +115,7 @@ int readFile(char * pathname, void ** buf, size_t * size){
     }
 
     if(resp != 1){
-        myerrno = errno;
+        myerrno = resp;
         return -1;
     }
 
@@ -271,11 +349,11 @@ int appendToFile(char * pathname, void * buf, size_t size, char * dirname){
         return -1;
     }
 
-    if(resp == 0){
+    if(resp == 0){  // non devo fare altro
         return 0;
     }
 
-    if(resp != 1){
+    if(resp != 1){  // devo ricevere file
         myerrno = resp;
         return -1;
     }
@@ -284,6 +362,7 @@ int appendToFile(char * pathname, void * buf, size_t size, char * dirname){
     
     if(resp == 1){ // devo leggere N file: size path cont
         FILE* outFile;
+        char pthToSave[MAX_PATH];
         while(1){
 
             if(read(socketfd, &size, sizeof(int)) != sizeof(int)){ myerrno = errno; return -1;} // leggo la size, se è -1 ho finito
@@ -297,19 +376,29 @@ int appendToFile(char * pathname, void * buf, size_t size, char * dirname){
             
             if(read(socketfd, buf, size) != size){ myerrno = errno; free(buf); return -1;} // leggo il contenuto
 
-            if (( outFile = fopen(pth, "wb")) == NULL){
-                myerrno = errno;
-            }
-            
-            if(fwrite(buf, 1, size, outFile) != size){  // scrivo contenuto su file
-                myerrno = errno;
-                free(buf);
-                fclose(outFile);
-                return -1;
-            }
+            if(dirname != NULL){
 
+                strcpy(pthToSave, dirname);
+                strcat(pthToSave, pth + onlyName(pth) );
+                if (( outFile = fopen(pthToSave, "wb")) == NULL){
+                    myerrno = errno;
+                    return -1;
+                }
+                if (( outFile = fopen(pthToSave, "wb")) == NULL){
+                    myerrno = errno;
+                    return -1;
+                }
+                
+                if(fwrite(buf, 1, size, outFile) != size){  // scrivo contenuto su file
+                    myerrno = errno;
+                    free(buf);
+                    fclose(outFile);
+                    return -1;
+                }
+                fclose(outFile);
+            }
             free(buf);
-            fclose(outFile);
+            
         }
     }
     
@@ -398,7 +487,7 @@ int writeFile(char* pathname, char * dirname){
     // lettura file di risposta
     
     if(resp == 1){ // devo leggere N file: size path cont
-        FILE* outFile;
+        FILE* outFile; char pthToSave[MAX_PATH];
         while(1){
 
             if(read(socketfd, &size, sizeof(int)) != sizeof(int)){ myerrno = errno; return -1;} // leggo la size, se è -1 ho finito
@@ -412,21 +501,30 @@ int writeFile(char* pathname, char * dirname){
             
             if(read(socketfd, buf, size) != size){ myerrno = errno; free(buf); return -1;} // leggo il contenuto
 
-            if (( outFile = fopen(pth, "wb")) == NULL){
-                perror("open");
-                myerrno = errno;
-                fprintf(stderr,"impossibile aprire o creare file\n");
-            }
-            
-            if(fwrite(buf, 1, size, outFile) != size){  // scrivo contenuto su file
-                myerrno = errno;
-                free(buf);
+            if(dirname != NULL){
+                strcpy(pthToSave, dirname);
+                strcat(pthToSave, pth + onlyName(pth) );
+                
+                if (( outFile = fopen(pthToSave, "wb")) == NULL){
+                    myerrno = errno;
+                    return -1;
+                }
+                if (( outFile = fopen(pthToSave, "wb")) == NULL){
+                    myerrno = errno;
+                    return -1;
+                }
+                
+                if(fwrite(buf, 1, size, outFile) != size){  // scrivo contenuto su file
+                    myerrno = errno;
+                    free(buf);
+                    fclose(outFile);
+                    return -1;
+                }
                 fclose(outFile);
-                return -1;
             }
 
             free(buf);
-            fclose(outFile);
+            
 
         }
     }
@@ -555,4 +653,14 @@ void myperror(const char * str){
     else{
         perror(str);
     }
+}
+
+int onlyName(char * str){ // ./ciao/pluto
+    int n = 0, last = 0;
+    while(n < strlen(str)){
+        if(str[n] == '/') last = n;
+        n++;
+    }
+    return last;
+    
 }

@@ -1,5 +1,5 @@
 socket_name=./mysock;
 num_thread_worker=3;
-max_dim_storage=2000;
+max_dim_storage=20000;
 max_num_file=10;
 log_file_path=log.txt;

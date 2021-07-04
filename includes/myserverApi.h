@@ -59,7 +59,12 @@ int closeFile(char * pathname);
 int removeFile(char * pathname);
 int readFile(char * pathname, void ** buf, size_t * size);
 void myperror(const char * str);
-//manca readnfiles
+int readNFiles(int n, char * dirname);
+int onlyName(char * str);
+void lock_file(char * str);
+void unlock_file(char * str);
+void remove_file(char * str);
+
 
 #define PIE(exp) \
         if( (exp) == -1){ \

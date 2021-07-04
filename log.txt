@@ -1,13 +1,27 @@
 nuova connessione con client 9
-il client 9 ha richiesto una open sul file config.txt con flag 3
+il client 9 ha richiesto una open sul file ./includes/myconnection.h con flag 3
 il client 9 ha completato la richiesta. Valore ritornato: 0
-il client 9 ha richiesto una write sul file config.txt di 105 byte
+il client 9 ha richiesto una write sul file ./includes/myconnection.h di 424 byte
 il client 9 ha completato la richiesta. Valore ritornato: 0
-il client 9 ha richiesto una open sul file ./src/client.c con flag 3
+il client 9 ha richiesto la lettura di 0 files
+invio al client 9 il file ./includes/myconnection.h di 424 byte
 il client 9 ha completato la richiesta. Valore ritornato: 0
-il client 9 ha richiesto una write sul file ./src/client.c di 6168 byte
-il client 9 ha completato la richiesta. Valore ritornato: 9
 chiudo il client 9 e tutti i file aperti
-Segnale ricevuto
-inizio terminazione lenta
-Uscito dal ciclo manager
+nuova connessione con client 9
+il client 9 ha richiesto una open sul file ./includes/myconnection.h con flag 3
+il client 9 ha completato la richiesta. Valore ritornato: 144
+il client 9 ha richiesto una write sul file ./includes/myconnection.h di 424 byte
+il client 9 ha completato la richiesta. Valore ritornato: 148
+il client 9 ha richiesto la lettura di 0 files
+invio al client 9 il file ./includes/myconnection.h di 424 byte
+il client 9 ha completato la richiesta. Valore ritornato: 0
+chiudo il client 9 e tutti i file aperti
+nuova connessione con client 9
+il client 9 ha richiesto una open sul file ./includes/myconnection.h con flag 3
+il client 9 ha completato la richiesta. Valore ritornato: 144
+il client 9 ha richiesto una write sul file ./includes/myconnection.h di 424 byte
+il client 9 ha completato la richiesta. Valore ritornato: 148
+il client 9 ha richiesto la lettura di 0 files
+invio al client 9 il file ./includes/myconnection.h di 424 byte
+il client 9 ha completato la richiesta. Valore ritornato: 0
+chiudo il client 9 e tutti i file aperti

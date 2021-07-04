@@ -3,6 +3,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <dirent.h>
+#include <time.h>
 
 //lo deve prendere da riga di comando 
 #define SOCKNAME "./mysock"
@@ -13,6 +14,7 @@ extern int socketfd, myerrno;
 extern char __sockname[UNIX_PATH_MAX];
 char returnDir[MAX_PATH] = "";
 char readDir[MAX_PATH] = "";
+int delay = 0, foundp = 0, r;
 
 void listfile(const char nomedir[], int * n);
 int isdot(const char dir[]) ;
@@ -21,12 +23,15 @@ char to_comand(char * str);
 void send_dir(char * str);
 void send_file(char str[]);
 void read_file(char * str);
+void read_n_file(char * str);
+int msleep(long msec);
+void client_log(char * format, ... );
 
 int main(int argc, char ** argv){
 
     if(argc == 1){return 0;}
 
-    int foundf = 0, i = 1, foundW = 0, foundp = 0, 
+    int foundf = 0, i = 1, foundW = 0,  
         foundD = 0, foundr = 0, foundw = 0, foundd = 0, foundR =0;
     char comand;
 
@@ -50,6 +55,7 @@ int main(int argc, char ** argv){
                     fprintf(stderr, "opzione -f non usata correttamente\n");
                     return 0;
                 }
+                break;
             }
             case 'w':;{
                 foundw = 1;
@@ -65,6 +71,7 @@ int main(int argc, char ** argv){
                     fprintf(stderr, "opzione -W non usata correttamente\n");
                     return 0;
                 }
+                break;
             }
             case 'D':;{ 
                 foundD = 1;
@@ -88,13 +95,40 @@ int main(int argc, char ** argv){
                     fprintf(stderr, "opzione -d non usata correttamente\n");
                     return 0;
                 }
+                break;
             }
             case 'R':;{
                 foundR = 1;
+                break;
+            }
+            case 'l':;{
                 if( argv[i+1] == NULL || is_comand(argv[i+1])){
-                    fprintf(stderr, "opzione -R non usata correttamente\n");
+                    fprintf(stderr, "opzione -l non usata correttamente\n");
                     return 0;
                 }
+                break;
+            }
+            case 'u':;{
+                if( argv[i+1] == NULL || is_comand(argv[i+1])){
+                    fprintf(stderr, "opzione -u non usata correttamente\n");
+                    return 0;
+                }
+                break;
+            }
+            case 'c':;{
+                if( argv[i+1] == NULL || is_comand(argv[i+1])){
+                    fprintf(stderr, "opzione -c non usata correttamente\n");
+                    return 0;
+                }
+                break;
+            }
+            case 't':;{
+                if( argv[i+1] == NULL || is_comand(argv[i+1])){
+                    fprintf(stderr, "opzione -t non usata correttamente\n");
+                    return 0;
+                }
+                delay = atoi(argv[i+1]);
+                break;
             }
             }
         }
@@ -120,6 +154,11 @@ int main(int argc, char ** argv){
         fprintf(stderr, "opzione -f non usata correttamente\n");
         return 0;
     }
+    if(delay < 0){
+        fprintf(stderr, "opzione -t non usata correttamente\n");
+        return 0;
+    }
+    
     
     i = 1;
     while (i < argc){
@@ -130,26 +169,29 @@ int main(int argc, char ** argv){
         
             case 'f':;{  
                 PIE(openConnection(argv[i+1]));
+                client_log("Apro la connessione con il socket: %s", argv[i+1]);
                 i++; // devo saltare un ulteriore parametro
-                
+                msleep(delay);
                 break;
             }
 
             case 'w':;{   
                 send_dir(argv[i+1]);
                 i++;
+                msleep(delay);
                 break;
-
             }
 
             case 'W':;{
                 send_file(argv[i+1]);
                 i++;
+                msleep(delay);
                 break;
             }
 
             case 'D':;{ // testare questa opzione
                 strcpy(returnDir, argv[i+1]);
+                client_log("Cartella di salvataggio della cache aggiornata in: %s", returnDir);
                 i++;
                 break;
             }
@@ -157,16 +199,35 @@ int main(int argc, char ** argv){
             case 'r':;{
                 read_file(argv[i+1]);
                 i++;
-                
+                msleep(delay);
                 break;
             }
             case 'd':;{
                 strcpy(readDir, argv[i+1]);
+                client_log("Cartella di lettura aggiornata in: %s", readDir);
                 break;
             }
-
-            case 'r':;{
-                read_file(argv[i+1]);
+            case 'R':;{
+                read_n_file(argv[i+1]);
+                msleep(delay);
+                break;
+            }
+            case 'l':;{
+                lock_file(argv[i+1]);
+                i++;
+                msleep(delay);
+                break;
+            }
+            case 'u':;{
+                unlock_file(argv[i+1]);
+                i++;
+                msleep(delay);
+                break;
+            }
+            case 'c':;{
+                remove_file(argv[i+1]);
+                i++;
+                msleep(delay);
                 break;
             }
         }   
@@ -177,27 +238,151 @@ int main(int argc, char ** argv){
     return 0;
 
 }
+void remove_file(char * str){
 
-void read_file(char * str){
-    
     char file[MAX_PATH];
     int pos =0;
 
-    // spostarsi nella cartella dove mettere i file e scrivere il buffer della read nel file (creato)
-    
     while(1){
         
         if(str[pos] == '\0'){
             strncpy(file, str, pos +1);
-            PIE(openFile(file, O_CREATE | O_LOCK));
-            PIE(writeFile(file, returnDir));
+            PIE(r = removeFile(file));
+            client_log("Rimosso il file %s con esito %d", file, r);
             return;
         }
         else if(str[pos] == ','){
             str[pos] = '\0';
             strncpy(file, str, pos +1);
-            PIE(openFile(file, O_CREATE | O_LOCK));
-            PIE(writeFile(file, returnDir));
+            PIE(r = removeFile(file));
+            client_log("Rimosso il file %s con esito %d", file, r);
+            str = str + pos + 1;
+            pos = 0;
+        }
+        else{
+            pos++;
+        }
+    }
+
+}
+void unlock_file(char * str){
+
+    char file[MAX_PATH];
+    int pos =0;
+
+    while(1){
+        
+        if(str[pos] == '\0'){
+            strncpy(file, str, pos +1);
+            PIE(r = unlockFile(file));
+            client_log("Unlock del file %s con esito %d", file, r);
+            return;
+        }
+        else if(str[pos] == ','){
+            str[pos] = '\0';
+            strncpy(file, str, pos +1);
+            PIE(r = unlockFile(file));
+            client_log("Unlock del file %s con esito %d", file, r);
+            str = str + pos + 1;
+            pos = 0;
+        }
+        else{
+            pos++;
+        }
+    }
+
+}
+
+void lock_file(char * str){
+
+    char file[MAX_PATH];
+    int pos =0;
+
+    while(1){
+        
+        if(str[pos] == '\0'){
+            strncpy(file, str, pos +1);
+            PIE(r = lockFile(file));
+            client_log("Lock del file %s con esito %d", file, r);
+            return;
+        }
+        else if(str[pos] == ','){
+            str[pos] = '\0';
+            strncpy(file, str, pos +1);
+            PIE(r = lockFile(file));
+            client_log("Lock del file %s con esito %d", file, r);
+            str = str + pos + 1;
+            pos = 0;
+        }
+        else{
+            pos++;
+        }
+    }
+
+}
+
+void read_n_file(char * str){
+
+    int n;
+    if(str == NULL || is_comand(str)) n=0; // devo leggere tutti i file
+    else{
+        str += 2;
+        n = atoi(str);
+    }
+
+    if(strcmp(readDir, "") == 0){
+        fprintf(stderr, "retDir non inizializzata\n");
+        return;
+    }
+
+    PIE(readNFiles(n, readDir));
+    client_log("Lettura di %d files con esito %d", n, r);
+
+}
+
+void read_file(char * str){
+    
+    char returnPath[MAX_PATH], file[MAX_PATH];
+    int pos =0;
+
+    while(1){
+        void * buf = NULL; size_t size; FILE * fileptr;
+        int r;
+        
+        if(str[pos] == '\0'){
+            strncpy(file, str, pos +1);
+            
+            PIE(r = readFile(file, &buf, &size)); // legge dal server
+            client_log("Lettura del file %s di %d byte con esito %d", file,size, r);
+            if(r == -1) {return;}
+
+            if(strcmp(readDir, "") != 0){   // se ho specificato una cartella in cui salvare i file letti
+                strcpy(returnPath, readDir);
+                strcat(returnPath, (file+onlyName(file)));
+                EXIT_ON( fileptr = fopen(returnPath, "wb"), == NULL);
+                EXIT_ON(fwrite(buf, 1, size, fileptr), != size);
+                client_log("Salvataggio del file %s nella cartella %s", file + onlyName(file), readDir);
+                free(buf);
+            }
+
+            return;
+        }
+        else if(str[pos] == ','){
+            str[pos] = '\0';
+            strncpy(file, str, pos +1);
+            
+            PIE(r = readFile(file, &buf, &size)); // legge dal server
+            client_log("Lettura del file %s di %d byte con esito %d", file,size, r);
+
+            if(strcmp(readDir, "") != 0){
+                strcpy(returnPath, readDir);
+                strcat(returnPath, (file+onlyName(file)));
+                EXIT_ON( fileptr = fopen(returnPath, "wb"), == NULL);
+                EXIT_ON(fwrite(buf, 1, size, fileptr), != size);
+                client_log("Salvataggio del file %s nella cartella %s", file + onlyName(file), readDir);
+                free(buf);
+            }
+
             str = str + pos + 1;
             pos = 0;
         }
@@ -206,6 +391,7 @@ void read_file(char * str){
         }
     }
 }
+
 
 void send_file(char str[]){ 
 
@@ -216,15 +402,31 @@ void send_file(char str[]){
         
         if(str[pos] == '\0'){
             strncpy(file, str, pos +1);
-            PIE(openFile(file, O_CREATE | O_LOCK));
-            PIE(writeFile(file, returnDir));
+            PIE(r = openFile(file, O_CREATE | O_LOCK));
+            client_log("Apertura del file %s con flag %d, esito %d", file, O_CREATE | O_LOCK, r);
+            if(strcmp(returnDir, "") == 0){ // cartella di ritorno non specificata
+                PIE(r = writeFile(file, NULL));
+                client_log("Scrittura del file %s nel server senza salvare i file evicted, esito: %d", file, r);
+            }
+            else{
+                PIE(r = writeFile(file, returnDir));
+                client_log("Scrittura del file %s nel server con salvataggio dei file evicted in %s, esito: %d", file, returnDir, r);
+            }
+            
             return;
         }
         else if(str[pos] == ','){
             str[pos] = '\0';
             strncpy(file, str, pos +1);
             PIE(openFile(file, O_CREATE | O_LOCK));
-            PIE(writeFile(file, returnDir));
+            if(strcmp(returnDir, "") == 0){ // cartella di ritorno non specificata
+                PIE(r = writeFile(file, NULL));
+                client_log("Scrittura del file %s nel server senza salvare i file evicted, esito: %d", file, r);
+            }
+            else{
+                PIE(r = writeFile(file, returnDir));
+                client_log("Scrittura del file %s nel server con salvataggio dei file evicted in %s, esito: %d", file, returnDir, r);
+            }
             str = str + pos + 1;
             pos = 0;
         }
@@ -278,9 +480,14 @@ void listfile(const char nomedir[], int * n) {
 
             (*n)--;
             PIE(openFile(filename, O_CREATE | O_LOCK));   // creo il file nel server
-            PIE(writeFile(filename, returnDir)); // scrivo il file
-        
-            fprintf(stdout, "file: %s, %d\n", filename, *n);		
+            if(strcmp(returnDir, "") == 0){ // cartella di ritorno non specificata
+                PIE(r = writeFile(filename, NULL));
+                client_log("Scrittura del file %s nel server senza salvare i file evicted, esito: %d", file, r);
+            }
+            else{
+                PIE(r = writeFile(filename, returnDir));
+                client_log("Scrittura del file %s nel server con salvataggio dei file evicted in %s, esito: %d", file, returnDir, r);
+            }
         }
         
     }
@@ -345,4 +552,33 @@ void send_dir(char * str){
 
     listfile(dirname, &n);
 
+}
+
+int msleep(long msec){
+    struct timespec ts;
+    int res;
+
+    if (msec < 0)
+    {
+        errno = EINVAL;
+        return -1;
+    }
+
+    ts.tv_sec = msec / 1000;
+    ts.tv_nsec = (msec % 1000) * 1000000;
+
+    do {
+        res = nanosleep(&ts, &ts);
+    } while (res && errno == EINTR);
+
+    return res;
+}
+
+void client_log(char * format, ... ){
+    if(foundp == 0) return;
+    va_list arglist;
+    va_start(arglist, format);
+    vfprintf(stderr, format, arglist);
+    fprintf(stderr, "\n");
+    va_end(arglist);
 }
