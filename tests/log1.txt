@@ -1,0 +1,47 @@
+nuova connessione con client 9
+il client 9 ha richiesto una open sul file tests/files/test1 con flag 3
+il client 9 ha completato la richiesta. Valore ritornato: 0
+il client 9 ha richiesto una write sul file tests/files/test1 di 20 byte
+il client 9 ha completato la richiesta. Valore ritornato: 0
+il client 9 ha richiesto una open sul file tests/files/test2 con flag 3
+il client 9 ha completato la richiesta. Valore ritornato: 0
+il client 9 ha richiesto una write sul file tests/files/test2 di 22 byte
+il client 9 ha completato la richiesta. Valore ritornato: 0
+il client 9 ha richiesto la lettura di tests/files/test1
+invio al client 9 il file tests/files/test1 di 20 byte
+il client 9 ha completato la richiesta. Valore ritornato: 0
+il client 9 ha richiesto la lettura di tests/files/test2
+invio al client 9 il file tests/files/test2 di 22 byte
+il client 9 ha completato la richiesta. Valore ritornato: 0
+chiudo il client 9 e tutti i file aperti
+nuova connessione con client 10
+il client 10 ha richiesto una open sul file tests/files/test1 con flag 0
+il client 10 ha completato la richiesta. Valore ritornato: 0
+il client 10 ha richiesto una lock su tests/files/test1
+il client 10 ha completato la richiesta. Valore ritornato: 0
+il client 10 ha richiesto una open sul file tests/files/test2 con flag 0
+il client 10 ha completato la richiesta. Valore ritornato: 0
+il client 10 ha richiesto una lock su tests/files/test2
+il client 10 ha completato la richiesta. Valore ritornato: 0
+il client 10 ha richiesto una open sul file tests/files/test1 con flag 0
+il client 10 ha completato la richiesta. Valore ritornato: 0
+il client 10 ha richiesto una unlock su tests/files/test1
+il client 10 ha completato la richiesta. Valore ritornato: 0
+il client 10 ha richiesto una open sul file tests/files/test2 con flag 0
+il client 10 ha completato la richiesta. Valore ritornato: 0
+il client 10 ha richiesto una unlock su tests/files/test2
+il client 10 ha completato la richiesta. Valore ritornato: 0
+chiudo il client 10 e tutti i file aperti
+nuova connessione con client 9
+il client 9 ha richiesto una open sul file tests/files/test1 con flag 0
+il client 9 ha completato la richiesta. Valore ritornato: 0
+il client 9 ha richiesto l'eliminazione di tests/files/test1
+il client 9 ha completato la richiesta. Valore ritornato: 0
+il client 9 ha richiesto una open sul file tests/files/test2 con flag 0
+il client 9 ha completato la richiesta. Valore ritornato: 0
+il client 9 ha richiesto l'eliminazione di tests/files/test2
+il client 9 ha completato la richiesta. Valore ritornato: 0
+chiudo il client 9 e tutti i file aperti
+Segnale ricevuto
+inizio terminazione lenta
+Uscito dal ciclo manager

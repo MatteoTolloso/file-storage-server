@@ -17,7 +17,7 @@ objpath = ./obj/
 
 srcpath = ./src/
 
-.PHONY: clean test
+.PHONY: clean cleanall test1 test2
 
 #all 
 
@@ -65,6 +65,12 @@ $(objpath)serverApi.o: $(srcpath)serverApi.c $(includes)
 
 cleanall	: 
 	rm -f $(obj) $(objpath)client.o $(objpath)serverApi.o ./server ./client
+	rm -r ./tests/dest1/ *
+	rm -r ./tests/evictSaves/ *
 
-test	:
-	valgrind --leak-check=full --show-leak-kinds=all ./server config.txt 
+
+test1	: ./server ./client
+	./tests/test1.sh
+
+test2	: ./server ./client
+	./tests/test2.sh

@@ -247,6 +247,7 @@ void remove_file(char * str){
         
         if(str[pos] == '\0'){
             strncpy(file, str, pos +1);
+            PIE(r = openFile(file, 0));
             PIE(r = removeFile(file));
             client_log("Rimosso il file %s con esito %d", file, r);
             return;
@@ -254,6 +255,7 @@ void remove_file(char * str){
         else if(str[pos] == ','){
             str[pos] = '\0';
             strncpy(file, str, pos +1);
+            PIE(r = openFile(file, 0));
             PIE(r = removeFile(file));
             client_log("Rimosso il file %s con esito %d", file, r);
             str = str + pos + 1;
@@ -274,6 +276,7 @@ void unlock_file(char * str){
         
         if(str[pos] == '\0'){
             strncpy(file, str, pos +1);
+            PIE(r = openFile(file, 0));
             PIE(r = unlockFile(file));
             client_log("Unlock del file %s con esito %d", file, r);
             return;
@@ -281,6 +284,7 @@ void unlock_file(char * str){
         else if(str[pos] == ','){
             str[pos] = '\0';
             strncpy(file, str, pos +1);
+            PIE(r = openFile(file, 0));
             PIE(r = unlockFile(file));
             client_log("Unlock del file %s con esito %d", file, r);
             str = str + pos + 1;
@@ -302,6 +306,7 @@ void lock_file(char * str){
         
         if(str[pos] == '\0'){
             strncpy(file, str, pos +1);
+            PIE(r = openFile(file, 0));
             PIE(r = lockFile(file));
             client_log("Lock del file %s con esito %d", file, r);
             return;
@@ -309,6 +314,7 @@ void lock_file(char * str){
         else if(str[pos] == ','){
             str[pos] = '\0';
             strncpy(file, str, pos +1);
+            PIE(r = openFile(file, 0));
             PIE(r = lockFile(file));
             client_log("Lock del file %s con esito %d", file, r);
             str = str + pos + 1;
@@ -482,11 +488,11 @@ void listfile(const char nomedir[], int * n) {
             PIE(openFile(filename, O_CREATE | O_LOCK));   // creo il file nel server
             if(strcmp(returnDir, "") == 0){ // cartella di ritorno non specificata
                 PIE(r = writeFile(filename, NULL));
-                client_log("Scrittura del file %s nel server senza salvare i file evicted, esito: %d", file, r);
+                client_log("Scrittura del file %s nel server senza salvare i file evicted, esito: %d", filename, r);
             }
             else{
                 PIE(r = writeFile(filename, returnDir));
-                client_log("Scrittura del file %s nel server con salvataggio dei file evicted in %s, esito: %d", file, returnDir, r);
+                client_log("Scrittura del file %s nel server con salvataggio dei file evicted in %s, esito: %d", filename, returnDir, r);
             }
         }
         
