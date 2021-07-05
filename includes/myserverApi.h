@@ -64,6 +64,8 @@ int onlyName(char * str);
 void lock_file(char * str);
 void unlock_file(char * str);
 void remove_file(char * str);
+int readn(int fd, void *ptr, size_t n);
+int writen(int fd, void *ptr, size_t n);
 
 
 #define PIE(exp) \

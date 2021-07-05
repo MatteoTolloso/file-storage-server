@@ -17,17 +17,17 @@ int readNFiles(int n, char * dirname){
     
     int reqType = READ_N_F, resp = 0;
 
-    if(write(socketfd, &reqType, sizeof(int)) != sizeof(int)){  // scrivo il tipo di richesta
+    if(writen(socketfd, &reqType, sizeof(int)) != sizeof(int)){  // scrivo il tipo di richesta
         myerrno = errno;
         return -1;
     }
     
-    if(write(socketfd, &n, sizeof(int)) != sizeof(int)){  // scrivo il numero di file
+    if(writen(socketfd, &n, sizeof(int)) != sizeof(int)){  // scrivo il numero di file
         myerrno = errno;
         return -1;
     }
 
-    if(read(socketfd, &resp, sizeof(int)) != sizeof(int)){  // leggo la risposta
+    if(readn(socketfd, &resp, sizeof(int)) != sizeof(int)){  // leggo la risposta
         myerrno = errno;
         return -1;
     }
@@ -39,16 +39,16 @@ int readNFiles(int n, char * dirname){
     FILE* outFile; int size; void * buf;
     while(1){
 
-        if(read(socketfd, &size, sizeof(int)) != sizeof(int)){ myerrno = errno; return -1;} // leggo la size, se è -1 ho finito
+        if(readn(socketfd, &size, sizeof(int)) != sizeof(int)){ myerrno = errno; return -1;} // leggo la size, se è -1 ho finito
         if(size == -1){
             break;
         }
         
-        if(read(socketfd, pth, MAX_PATH) != MAX_PATH){ myerrno = errno; return -1;} // leggo il path
+        if(readn(socketfd, pth, MAX_PATH) != MAX_PATH){ myerrno = errno; return -1;} // leggo il path
 
         EXIT_ON(buf = malloc(size), == NULL); // alloco il buffer
         
-        if(read(socketfd, buf, size) != size){ myerrno = errno; free(buf); return -1;} // leggo il contenuto
+        if(readn(socketfd, buf, size) != size){ myerrno = errno; free(buf); return -1;} // leggo il contenuto
         
         strcpy(pthToSave, dirname);
         strcat(pthToSave, pth + onlyName(pth) );
@@ -68,7 +68,7 @@ int readNFiles(int n, char * dirname){
         fclose(outFile);
     }
 
-    if(read(socketfd, &resp, sizeof(int)) != sizeof(int)){  // leggo la risposta finale 
+    if(readn(socketfd, &resp, sizeof(int)) != sizeof(int)){  // leggo la risposta finale 
         myerrno = errno;
         return -1;
     }
@@ -99,17 +99,17 @@ int readFile(char * pathname, void ** buf, size_t * size){
     pth[MAX_PATH-1] = '\0';
     int reqType = READ_F, resp = 0;
 
-    if(write(socketfd, &reqType, sizeof(int)) != sizeof(int)){  // scrivo il tipo di richesta
+    if(writen(socketfd, &reqType, sizeof(int)) != sizeof(int)){  // scrivo il tipo di richesta
         myerrno = errno;
         return -1;
     }
 
-    if(write(socketfd, pth, MAX_PATH) != MAX_PATH){  // scrivo il path
+    if(writen(socketfd, pth, MAX_PATH) != MAX_PATH){  // scrivo il path
         myerrno = errno;
         return -1;
     }
 
-    if(read(socketfd, &resp, sizeof(int)) != sizeof(int)){  // leggo la risposta
+    if(readn(socketfd, &resp, sizeof(int)) != sizeof(int)){  // leggo la risposta
         myerrno = errno;
         return -1;
     }
@@ -122,20 +122,20 @@ int readFile(char * pathname, void ** buf, size_t * size){
     int i_size;
     char * i_buf;
 
-    if(read(socketfd, &i_size, sizeof(int)) != sizeof(int)){  // leggo la size
+    if(readn(socketfd, &i_size, sizeof(int)) != sizeof(int)){  // leggo la size
         myerrno = errno;
         return -1;
     }
 
     EXIT_ON(i_buf = malloc(i_size), == NULL); // alloco il buffer
 
-    if(read(socketfd, i_buf, i_size) != i_size){  // leggo il contenuto
+    if(readn(socketfd, i_buf, i_size) != i_size){  // leggo il contenuto
         free(i_buf);
         myerrno = errno;
         return -1;
     }
 
-    if(read(socketfd, &resp, sizeof(int)) != sizeof(int)){  // leggo la risposta
+    if(readn(socketfd, &resp, sizeof(int)) != sizeof(int)){  // leggo la risposta
         free(i_buf);
         myerrno = errno;
         return -1;
@@ -167,17 +167,17 @@ int removeFile(char * pathname){
     pth[MAX_PATH-1] = '\0';
     int reqType = REMOVE_F, resp = 0;
 
-    if(write(socketfd, &reqType, sizeof(int)) != sizeof(int)){  // scrivo il tipo di richesta
+    if(writen(socketfd, &reqType, sizeof(int)) != sizeof(int)){  // scrivo il tipo di richesta
         myerrno = errno;
         return -1;
     }
 
-    if(write(socketfd, pth, MAX_PATH) != MAX_PATH){  // scrivo il path
+    if(writen(socketfd, pth, MAX_PATH) != MAX_PATH){  // scrivo il path
         myerrno = errno;
         return -1;
     }
 
-    if(read(socketfd, &resp, sizeof(int)) != sizeof(int)){  // leggo la risposta
+    if(readn(socketfd, &resp, sizeof(int)) != sizeof(int)){  // leggo la risposta
         myerrno = errno;
         return -1;
     }
@@ -206,17 +206,17 @@ int closeFile(char * pathname){
     pth[MAX_PATH-1] = '\0';
     int reqType = CLOSE_F, resp = 0;
 
-    if(write(socketfd, &reqType, sizeof(int)) != sizeof(int)){  // scrivo il tipo di richesta
+    if(writen(socketfd, &reqType, sizeof(int)) != sizeof(int)){  // scrivo il tipo di richesta
         myerrno = errno;
         return -1;
     }
 
-    if(write(socketfd, pth, MAX_PATH) != MAX_PATH){  // scrivo il path
+    if(writen(socketfd, pth, MAX_PATH) != MAX_PATH){  // scrivo il path
         myerrno = errno;
         return -1;
     }
 
-    if(read(socketfd, &resp, sizeof(int)) != sizeof(int)){  // leggo la risposta
+    if(readn(socketfd, &resp, sizeof(int)) != sizeof(int)){  // leggo la risposta
         myerrno = errno;
         return -1;
     }
@@ -245,17 +245,17 @@ int unlockFile(char * pathname){
     pth[MAX_PATH-1] = '\0';
     int reqType = UNLOCK_F, resp = 0;
 
-    if(write(socketfd, &reqType, sizeof(int)) != sizeof(int)){  // scrivo il tipo di richesta
+    if(writen(socketfd, &reqType, sizeof(int)) != sizeof(int)){  // scrivo il tipo di richesta
         myerrno = errno;
         return -1;
     }
 
-    if(write(socketfd, pth, MAX_PATH) != MAX_PATH){  // scrivo il path
+    if(writen(socketfd, pth, MAX_PATH) != MAX_PATH){  // scrivo il path
         myerrno = errno;
         return -1;
     }
 
-    if(read(socketfd, &resp, sizeof(int)) != sizeof(int)){  // leggo la risposta
+    if(readn(socketfd, &resp, sizeof(int)) != sizeof(int)){  // leggo la risposta
         myerrno = errno;
         return -1;
     }
@@ -284,17 +284,17 @@ int lockFile(char * pathname){
     pth[MAX_PATH-1] = '\0';
     int reqType = LOCK_F, resp = 0;
 
-    if(write(socketfd, &reqType, sizeof(int)) != sizeof(int)){  // scrivo il tipo di richesta
+    if(writen(socketfd, &reqType, sizeof(int)) != sizeof(int)){  // scrivo il tipo di richesta
         myerrno = errno;
         return -1;
     }
 
-    if(write(socketfd, pth, MAX_PATH) != MAX_PATH){  // scrivo il path
+    if(writen(socketfd, pth, MAX_PATH) != MAX_PATH){  // scrivo il path
         myerrno = errno;
         return -1;
     }
 
-    if(read(socketfd, &resp, sizeof(int)) != sizeof(int)){  // leggo la risposta
+    if(readn(socketfd, &resp, sizeof(int)) != sizeof(int)){  // leggo la risposta
         myerrno = errno;
         return -1;
     }
@@ -324,27 +324,27 @@ int appendToFile(char * pathname, void * buf, size_t size, char * dirname){
     pth[MAX_PATH-1] = '\0';
     int reqType = APPEND_T_F, resp = 0;
 
-    if(write(socketfd, &reqType, sizeof(int)) != sizeof(int)){  // scrivo il tipo di richesta
+    if(writen(socketfd, &reqType, sizeof(int)) != sizeof(int)){  // scrivo il tipo di richesta
         myerrno = errno;
         return -1;
     }
 
-    if(write(socketfd, &size, sizeof(int)) != sizeof(int)){  // scrivo la size
+    if(writen(socketfd, &size, sizeof(int)) != sizeof(int)){  // scrivo la size
         myerrno = errno;
         return -1;
     }
     
-    if(write(socketfd, pth, MAX_PATH) != MAX_PATH){  // scrivo il path
+    if(writen(socketfd, pth, MAX_PATH) != MAX_PATH){  // scrivo il path
         myerrno = errno;
         return -1;
     }
     
-    if(write(socketfd, buf, size) != size){  // scrivo il buffer
+    if(writen(socketfd, buf, size) != size){  // scrivo il buffer
         myerrno = errno;
         return -1;
     }
  
-    if(read(socketfd, &resp, sizeof(int)) != sizeof(int)){  // leggo la risposta
+    if(readn(socketfd, &resp, sizeof(int)) != sizeof(int)){  // leggo la risposta
         myerrno = errno;
         return -1;
     }
@@ -365,16 +365,16 @@ int appendToFile(char * pathname, void * buf, size_t size, char * dirname){
         char pthToSave[MAX_PATH];
         while(1){
 
-            if(read(socketfd, &size, sizeof(int)) != sizeof(int)){ myerrno = errno; return -1;} // leggo la size, se è -1 ho finito
+            if(readn(socketfd, &size, sizeof(int)) != sizeof(int)){ myerrno = errno; return -1;} // leggo la size, se è -1 ho finito
             if(size == -1){
                 break;
             }
             
-            if(read(socketfd, pth, MAX_PATH) != MAX_PATH){ myerrno = errno; return -1;} // leggo il path
+            if(readn(socketfd, pth, MAX_PATH) != MAX_PATH){ myerrno = errno; return -1;} // leggo il path
 
             EXIT_ON(buf = malloc(size), == NULL); // alloco il buffer
             
-            if(read(socketfd, buf, size) != size){ myerrno = errno; free(buf); return -1;} // leggo il contenuto
+            if(readn(socketfd, buf, size) != size){ myerrno = errno; free(buf); return -1;} // leggo il contenuto
 
             if(dirname != NULL){
 
@@ -402,7 +402,7 @@ int appendToFile(char * pathname, void * buf, size_t size, char * dirname){
         }
     }
     
-    if(read(socketfd, &resp, sizeof(int)) != sizeof(int)){ myerrno = errno; return -1;}
+    if(readn(socketfd, &resp, sizeof(int)) != sizeof(int)){ myerrno = errno; return -1;}
 
     if(resp == 0){
         return 0;
@@ -454,25 +454,25 @@ int writeFile(char* pathname, char * dirname){
     
     fclose(inFile);
 
-    if(write(socketfd, &reqType, sizeof(int)) != sizeof(int)){  // scrivo il tipo di richesta
+    if(writen(socketfd, &reqType, sizeof(int)) != sizeof(int)){  // scrivo il tipo di richesta
         myerrno = errno;
         return -1;
     }
-    if(write(socketfd, &size, sizeof(int)) != sizeof(int)){  // scrivo la size
+    if(writen(socketfd, &size, sizeof(int)) != sizeof(int)){  // scrivo la size
         myerrno = errno;
         return -1;
     }
-    if(write(socketfd, pth, MAX_PATH) != MAX_PATH){  // scrivo il path
+    if(writen(socketfd, pth, MAX_PATH) != MAX_PATH){  // scrivo il path
         myerrno = errno;
         return -1;
     }
-    if(write(socketfd, buf, size) != size){  // scrivo il contenuto
+    if(writen(socketfd, buf, size) != size){  // scrivo il contenuto
         myerrno = errno;
         return -1;
     }
     free(buf);
 
-    if(read(socketfd, &resp, sizeof(int)) != sizeof(int)){  // leggo la risposta
+    if(readn(socketfd, &resp, sizeof(int)) != sizeof(int)){  // leggo la risposta
         myerrno = errno;
         return -1;
     }
@@ -490,16 +490,16 @@ int writeFile(char* pathname, char * dirname){
         FILE* outFile; char pthToSave[MAX_PATH];
         while(1){
 
-            if(read(socketfd, &size, sizeof(int)) != sizeof(int)){ myerrno = errno; return -1;} // leggo la size, se è -1 ho finito
+            if(readn(socketfd, &size, sizeof(int)) != sizeof(int)){ myerrno = errno; return -1;} // leggo la size, se è -1 ho finito
             if(size == -1){
                 break;
             }
             
-            if(read(socketfd, pth, MAX_PATH) != MAX_PATH){ myerrno = errno; return -1;} // leggo il path
+            if(readn(socketfd, pth, MAX_PATH) != MAX_PATH){ myerrno = errno; return -1;} // leggo il path
 
             EXIT_ON(buf = malloc(size), == NULL); // alloco il buffer
             
-            if(read(socketfd, buf, size) != size){ myerrno = errno; free(buf); return -1;} // leggo il contenuto
+            if(readn(socketfd, buf, size) != size){ myerrno = errno; free(buf); return -1;} // leggo il contenuto
 
             if(dirname != NULL){
                 strcpy(pthToSave, dirname);
@@ -529,7 +529,7 @@ int writeFile(char* pathname, char * dirname){
         }
     }
 
-    if(read(socketfd, &resp, sizeof(int)) != sizeof(int)){  // leggo la risposta
+    if(readn(socketfd, &resp, sizeof(int)) != sizeof(int)){  // leggo la risposta
         myerrno = errno;
         return -1;
     }
@@ -567,22 +567,22 @@ int openFile(const char* pathname, int flags){
         return -1;
     }
 
-    if(write(socketfd, &reqType, sizeof(int)) != sizeof(int)){  // scrivo il tipo di richesta
+    if(writen(socketfd, &reqType, sizeof(int)) != sizeof(int)){  // scrivo il tipo di richesta
         myerrno = errno;
         return -1;
     }
 
-    if(write(socketfd, &pth, MAX_PATH) != MAX_PATH){  // scrivo il path
+    if(writen(socketfd, &pth, MAX_PATH) != MAX_PATH){  // scrivo il path
         myerrno = errno;
         return -1;
     }
 
-    if(write(socketfd, &flags, sizeof(int)) != sizeof(int)){  // scrivo i flag
+    if(writen(socketfd, &flags, sizeof(int)) != sizeof(int)){  // scrivo i flag
         myerrno = errno;
         return -1;
     }
 
-    if(read(socketfd, &resp, sizeof(int)) != sizeof(int)){  // leggo la risposta
+    if(readn(socketfd, &resp, sizeof(int)) != sizeof(int)){  // leggo la risposta
         myerrno = errno;
         return -1;
     }
@@ -663,4 +663,37 @@ int onlyName(char * str){ // ./ciao/pluto
     }
     return last;
     
+}
+
+int readn(int fd, void *ptr, size_t n) {  
+    size_t   nleft;
+    ssize_t  nread;
+
+    nleft = n;
+    while (nleft > 0) {
+        if((nread = read(fd, ptr, nleft)) < 0) {
+        if (nleft == n) return -1; /* error, return -1 */
+        else break; /* error, return amount read so far */
+    } else if (nread == 0) break; /* EOF */
+    
+    nleft -= nread;
+    ptr   = (void*)((char*)ptr + nread);
+    }
+    return(n - nleft); /* return >= 0 */
+}
+
+int writen(int fd, void *ptr, size_t n) {  
+    size_t   nleft;
+    ssize_t  nwritten;
+
+    nleft = n;
+    while (nleft > 0) {
+        if((nwritten = write(fd, ptr, nleft)) < 0) {
+        if (nleft == n) return -1; /* error, return -1 */
+        else break; /* error, return amount written so far */
+        } else if (nwritten == 0) break; 
+        nleft -= nwritten;
+        ptr   = (void*)((char*)ptr + nwritten);
+    }
+    return(n - nleft); /* return >= 0 */
 }
