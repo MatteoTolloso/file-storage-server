@@ -8,6 +8,6 @@ sleep 2
 ./client -p -t 200 -f mysock  -l tests/files/test1,tests/files/test2 -u tests/files/test1,tests/files/test2
 ./client -p -t 200 -f mysock  -c tests/files/test1,tests/files/test2 
 
-kill -1 ${SERVER_PID}
+kill -s SIGHUP ${SERVER_PID}
 
 exit 0
