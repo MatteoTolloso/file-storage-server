@@ -36,50 +36,62 @@ il client 9 ha completato la richiesta. Valore ritornato: 0
 il client 9 ha richiesto una write sul file tests/files/image1.jpg di 1022701 byte
 il client 9 ha completato la richiesta. Valore ritornato: 147
 il client 9 ha richiesto una open sul file tests/files/test4 con flag 3
+invio al client 9 il file tests/files/file03 di 500 byte
 il client 9 ha completato la richiesta. Valore ritornato: 0
 il client 9 ha richiesto una write sul file tests/files/test4 di 16 byte
 il client 9 ha completato la richiesta. Valore ritornato: 0
 il client 9 ha richiesto una open sul file tests/files/test3 con flag 3
+invio al client 9 il file tests/files/file10 di 500 byte
 il client 9 ha completato la richiesta. Valore ritornato: 0
 il client 9 ha richiesto una write sul file tests/files/test3 di 17 byte
 il client 9 ha completato la richiesta. Valore ritornato: 0
 il client 9 ha richiesto una open sul file tests/files/i promessi sposi.pdf con flag 3
+invio al client 9 il file tests/files/file07 di 500 byte
 il client 9 ha completato la richiesta. Valore ritornato: 0
 il client 9 ha richiesto una write sul file tests/files/i promessi sposi.pdf di 2473885 byte
 il client 9 ha completato la richiesta. Valore ritornato: 147
 il client 9 ha richiesto una open sul file tests/files/file01 con flag 3
+invio al client 9 il file tests/files/file09 di 500 byte
 il client 9 ha completato la richiesta. Valore ritornato: 0
 il client 9 ha richiesto una write sul file tests/files/file01 di 500 byte
 il client 9 ha completato la richiesta. Valore ritornato: 0
 il client 9 ha richiesto una open sul file tests/files/test1 con flag 3
+invio al client 9 il file tests/files/gif2.gif di 982770 byte
 il client 9 ha completato la richiesta. Valore ritornato: 0
 il client 9 ha richiesto una write sul file tests/files/test1 di 20 byte
 il client 9 ha completato la richiesta. Valore ritornato: 0
 il client 9 ha richiesto una open sul file tests/files/gif1.gif con flag 3
+invio al client 9 il file tests/files/file06 di 500 byte
 il client 9 ha completato la richiesta. Valore ritornato: 0
 il client 9 ha richiesto una write sul file tests/files/gif1.gif di 275446 byte
 il client 9 ha completato la richiesta. Valore ritornato: 0
 il client 9 ha richiesto una open sul file tests/files/image2.jpg con flag 3
+invio al client 9 il file tests/files/file08 di 500 byte
 il client 9 ha completato la richiesta. Valore ritornato: 0
 il client 9 ha richiesto una write sul file tests/files/image2.jpg di 1143670 byte
 il client 9 ha completato la richiesta. Valore ritornato: 147
 il client 9 ha richiesto una open sul file tests/files/test2 con flag 3
+invio al client 9 il file tests/files/image3.jpg di 0 byte
 il client 9 ha completato la richiesta. Valore ritornato: 0
 il client 9 ha richiesto una write sul file tests/files/test2 di 22 byte
 il client 9 ha completato la richiesta. Valore ritornato: 0
 il client 9 ha richiesto una open sul file tests/files/file05 con flag 3
+invio al client 9 il file tests/files/image1.jpg di 0 byte
 il client 9 ha completato la richiesta. Valore ritornato: 0
 il client 9 ha richiesto una write sul file tests/files/file05 di 500 byte
 il client 9 ha completato la richiesta. Valore ritornato: 0
 il client 9 ha richiesto una open sul file tests/files/file02 con flag 3
+invio al client 9 il file tests/files/test4 di 16 byte
 il client 9 ha completato la richiesta. Valore ritornato: 0
 il client 9 ha richiesto una write sul file tests/files/file02 di 500 byte
 il client 9 ha completato la richiesta. Valore ritornato: 0
 il client 9 ha richiesto una open sul file tests/files/file04 con flag 3
+invio al client 9 il file tests/files/test3 di 17 byte
 il client 9 ha completato la richiesta. Valore ritornato: 0
 il client 9 ha richiesto una write sul file tests/files/file04 di 500 byte
 il client 9 ha completato la richiesta. Valore ritornato: 0
 il client 9 ha richiesto una open sul file tests/files/divina commedia.pdf con flag 3
+invio al client 9 il file tests/files/i promessi sposi.pdf di 0 byte
 il client 9 ha completato la richiesta. Valore ritornato: 0
 il client 9 ha richiesto una write sul file tests/files/divina commedia.pdf di 895380 byte
 invio al client 9 il file tests/files/file01 di 500 byte
@@ -89,5 +101,4 @@ file tests/files/test1 eliminato dal server
 invio al client 9 il file tests/files/gif1.gif di 275446 byte
 file tests/files/gif1.gif eliminato dal server
 il client 9 ha completato la richiesta. Valore ritornato: 0
-Segnale ricevuto
-inizio terminazione veloce
+chiudo il client 9 e tutti i file aperti

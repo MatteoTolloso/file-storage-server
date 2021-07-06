@@ -547,11 +547,25 @@ int openFile_handler(FileSystem_t * fs, int clientFd, char * path, int flags){
 
         // devo aggiungere un file
         
-        if(fs->actNumFile + 1 == fs->maxNumFile){   // rimpiazzamento, da aggiungere l'invio al client
+        if(fs->actNumFile + 1 == fs->maxNumFile){   // parte l'algoritmo della cache 
             File_t * tmp = cacheEvict(fs, NULL, 0);
             assert(tmp != NULL);
-            fprintf(stderr, "evict del file: %s per massimo numero di file\n", tmp->path);
+            f_startWrite(tmp);
+            
+            retVal = 1; // segnalo che sta per arrivare un file
+            if (writen(clientFd, &retVal, sizeof(int)) != sizeof(int)) perror("i file verranno persi");
+
+            server_log("invio al client %d il file %s di %d byte", clientFd, tmp->path, tmp->size);
+        
+            if (writen(clientFd, &tmp->size, sizeof(int)) != sizeof(int))perror("i file verranno persi"); 
+            if (writen(clientFd, tmp->path, MAX_PATH) != MAX_PATH) perror("i file verranno persi"); 
+            if (writen(clientFd, tmp->cont, tmp->size) != tmp->size) perror("i file verranno persi"); 
+
+            f_doneRead(tmp);
             deleteFile(tmp);
+
+            retVal = -1; //segnalo al client che i file sono finiti
+            if (writen(clientFd, &retVal, sizeof(int)) != sizeof(int)) perror("errore client");
         }
 
         File_t * newfile  = init_File(path, clientFd); 
@@ -611,7 +625,7 @@ int openFile_handler(FileSystem_t * fs, int clientFd, char * path, int flags){
             }
         }
     }
-    
+    retVal = 0;
     openFile_handler_END:
     server_log("il client %d ha completato la richiesta. Valore ritornato: %d", clientFd, retVal);
     EXIT_ON(pthread_mutex_unlock(&fs->fs_lock), != 0);   

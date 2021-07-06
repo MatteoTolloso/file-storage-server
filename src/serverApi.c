@@ -439,7 +439,7 @@ int writeFile(char* pathname, char * dirname){
     }
  
     // leggo il file
-    size_t size = 0;
+    int size = 0;
 
     fseek(inFile, 0, SEEK_END);
     size = ftell(inFile);
@@ -590,11 +590,37 @@ int openFile(const char* pathname, int flags){
     if(resp == 0){
         return 0;
     }
-    else{
+    else if (resp != 1){
         myerrno = resp;
         return -1;
     }
 
+    // c'è un file da salvare
+
+    int size; void * buf;
+    if(readn(socketfd, &size, sizeof(int)) != sizeof(int)){ myerrno = errno; return -1;} // leggo la size
+    if(readn(socketfd, pth, MAX_PATH) != MAX_PATH){ myerrno = errno; return -1;} // leggo il path
+
+    EXIT_ON(buf = malloc(size), == NULL); // alloco il buffer
+            
+    if(readn(socketfd, buf, size) != size){ myerrno = errno; free(buf); return -1;} // leggo il contenuto
+
+    if(readn(socketfd, &resp, sizeof(int)) != sizeof(int)){ myerrno = errno; return -1;} // leggo la risposta di fine file
+
+    if(resp != -1){     // è successo qualcosa di strano
+        myerrno = E_BAD_RQ;
+        return -1;
+    }
+
+    if(readn(socketfd, &resp, sizeof(int)) != sizeof(int)){ myerrno = errno; return -1;} // leggo la risposta finale 
+
+    if(resp != 0){     // è successo qualcosa di strano
+        myerrno = resp;
+        return -1;
+    }
+    else{
+        return 0;
+    }
 }
 
 
