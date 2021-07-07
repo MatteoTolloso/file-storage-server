@@ -234,8 +234,8 @@ int main(int argc, char ** argv){
             
         i++;
     }
-
-    closeConnection(__sockname);
+    client_log("Chiudo la connessione con il server e termino");
+    PIE(closeConnection(__sockname));
     
     return 0;
 
@@ -366,10 +366,10 @@ void read_file(char * str){
 
             if(strcmp(readDir, "") != 0){   // se ho specificato una cartella in cui salvare i file letti
                 strcpy(returnPath, readDir);
-                strcat(returnPath, (file+onlyName(file)));
+                strcat(returnPath, (file+onlyName(file) + 1));
                 EXIT_ON( fileptr = fopen(returnPath, "wb"), == NULL);
                 EXIT_ON(fwrite(buf, 1, size, fileptr), != size);
-                client_log("Salvataggio del file %s nella cartella %s", file + onlyName(file), readDir);
+                client_log("Salvataggio del file %s nella cartella %s", file + onlyName(file) +1, readDir);
                 free(buf);
             }
 
@@ -384,10 +384,10 @@ void read_file(char * str){
 
             if(strcmp(readDir, "") != 0){
                 strcpy(returnPath, readDir);
-                strcat(returnPath, (file+onlyName(file)));
+                strcat(returnPath, (file+onlyName(file) + 1));
                 EXIT_ON( fileptr = fopen(returnPath, "wb"), == NULL);
                 EXIT_ON(fwrite(buf, 1, size, fileptr), != size);
-                client_log("Salvataggio del file %s nella cartella %s", file + onlyName(file), readDir);
+                client_log("Salvataggio del file %s nella cartella %s", file + onlyName(file) +1, readDir);
                 free(buf);
             }
 
@@ -452,7 +452,6 @@ void listfile(const char nomedir[], int * n) {
     EXIT_ON(stat(nomedir,&statbuf),!= 0);
 
     DIR * dir;
-    fprintf(stdout, "Directory %s:\n",nomedir);
     
     if ((dir=opendir(nomedir)) == NULL) {
         perror("opendir");

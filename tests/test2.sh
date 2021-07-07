@@ -1,11 +1,11 @@
 #!/bin/bash
 
 
-valgrind --leak-check=full -s --leak-check=full --show-leak-kinds=all ./server ./tests/config2.txt &
+./server ./tests/config2.txt &
 SERVER_PID=$!
-./client -t 200 -f mysock -D tests/fileEvict -w tests/files 
-
+./client -p -t 200 -f mysock -D tests/fileEvict -w tests/files 
 
 kill -s SIGINT ${SERVER_PID}
 
+sleep 1
 exit 0

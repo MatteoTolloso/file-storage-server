@@ -701,16 +701,6 @@ int closeConnection(const char* sockname){
     return 0;
 }
 
-void myperror(const char * str){
-    if(myerrno >= 140){
-        fprintf(stderr, "errore %d: ", myerrno);
-        fprintf(stderr, "%s\n", str);
-    }
-    else{
-        perror(str);
-    }
-}
-
 int onlyName(char * str){ // ./ciao/pluto
     int n = 0, last = 0;
     while(n < strlen(str)){
@@ -752,4 +742,54 @@ int writen(int fd, void *ptr, size_t n) {
         ptr   = (void*)((char*)ptr + nwritten);
     }
     return(n - nleft); /* return >= 0 */
+}
+
+void myperror(const char * str){
+    if(myerrno >= 140){
+        fprintf(stderr, "Error in \"%s\": ", str);
+
+        switch (myerrno)
+        {
+        case E_INV_FLG:
+            fprintf(stderr, "Invalid flags\n");
+            break;
+        case E_INV_PTH:
+            fprintf(stderr, "Invalid path\n");
+            break;
+        case E_LOCK:
+            fprintf(stderr, "File locked\n");
+            break;
+        case E_NOT_EX:
+            fprintf(stderr, "File not exists\n");
+            break;
+        case E_ALR_EX:
+            fprintf(stderr, "File already exists\n");
+            break;
+        case E_BAD_RQ:
+            fprintf(stderr, "Invalid request\n");
+            break;
+        case E_ALR_LK:
+            fprintf(stderr, "File already locked\n");
+            break;
+        case E_NO_SPACE:
+            fprintf(stderr, "No enough space (in server memory)\n");
+            break;
+        case E_NOT_OPN:
+            fprintf(stderr, "File not open\n");
+            break;
+        case E_INV_SCK:
+            fprintf(stderr, "Invalid socket path\n");
+            break;
+        case E_NOT_CON:
+            fprintf(stderr, "Not connected\n");
+            break;
+        default:
+            fprintf(stderr, "Unkown error\n");
+            break;
+        }
+        
+    }
+    else{
+        perror(str);
+    }
 }

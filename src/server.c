@@ -72,19 +72,17 @@ int main(int argc, char ** argv){
 
     /* FINE installazione gestore segnali */
 
-    remove("mysock");
-
     /* INIZIO configurazione dei parametri dal file config.txt e del file di log */
 
     if (argc < 2) EXIT_ON("errore parametri",);
     
     char * sck_name, *log_path; int max_num_file, max_dim_storage, num_thread_worker;
 
-    parse(argv[1], &sck_name,&log_path,  &max_num_file,  &max_dim_storage,  &num_thread_worker);
+    parse(argv[1], &sck_name, &log_path,  &max_num_file,  &max_dim_storage,  &num_thread_worker);
 
     EXIT_ON(logFile = fopen(log_path, "w"), == NULL);
 
-    printf("MANAGER:\nsocket name:%s\nlog_path:%s\nmax_num_file:%d\nmax_dim_storage:%d\nnum_thread_worker:%d\n", 
+    server_log("Configurazione:\nsocket name:%s\nlog_path:%s\nmax_num_file:%d\nmax_dim_storage:%d\nnum_thread_worker:%d\n", 
             sck_name,log_path, max_num_file, max_dim_storage, num_thread_worker);
     
     /* FINE configurazione dei parametri dal file config.txt e del file di log */
@@ -146,14 +144,13 @@ int main(int argc, char ** argv){
     fd_max++; // per sicurezza, perchè c'è anche da considerare il fd del file config
     int endMode=0;
 
-    fprintf(stderr, "DEBUG: pipeSigReading: %d \n", pipeSigReading);
+    server_log("Server pronto");
 
     while(endMode==0 || activeClients > 0){  // finchè non è richiesta la terminazione o ci sono client attivi
         //fprintf(stderr, "\nendMode = %d, activeClients = %d, fd_max = %d\n", endMode, activeClients, fd_max);
         tmpset = set;        
         if( select(fd_max + 1, &tmpset, NULL, NULL, NULL) == -1) // attenzione all'arrivo del segnale
         { 
-            perror("select");
             server_log("Segnale %d ricevuto", errno); 
         }
          
@@ -163,7 +160,7 @@ int main(int argc, char ** argv){
             if(endMode == 1) {
                 FD_CLR(socket_fd, &set);   // terminazione lenta, non ascolto più il socket
                 fd_max = updatemax(set, fd_max);
-                server_log("inizio terminazione lenta");
+                server_log("Inizio terminazione lenta");
             }
 
             if(endMode == 2){   // terminazione veloce 
@@ -176,7 +173,7 @@ int main(int argc, char ** argv){
                 }
                 FD_CLR(socket_fd, &set); // non ascolto nuove richieste di connessione
                 fd_max = updatemax(set, fd_max);
-                server_log("inizio terminazione veloce");
+                server_log("Inizio terminazione veloce");
             }
             continue;
         }
@@ -190,7 +187,7 @@ int main(int argc, char ** argv){
                     FD_SET(newConnFd, &set);
                     activeClients++;
                     if(newConnFd > fd_max) fd_max = newConnFd;
-                    server_log("nuova connessione con client %d", newConnFd);
+                    server_log("Nuova connessione con client %d", newConnFd);
                 }
                 else if(i == pipeReadig_fd){  // fd di ritorno dalla pipe
                     int returnedConnFd;
@@ -267,7 +264,7 @@ int main(int argc, char ** argv){
     close(pipeSigWriting);
     remove(sck_name);
     free(sck_name);
-    fclose(logFile);
+    
     free(log_path);
     free(tidArr);
     //free(args);
@@ -278,7 +275,8 @@ int main(int argc, char ** argv){
     pthread_cond_destroy(&ready_clients->empty);
     free(ready_clients);
     deinit_FileSystem(fs);
-    
+    server_log("Server terminato");
+    fclose(logFile);
     /* FINE operazioni di chiusura */
 
     return 0;
