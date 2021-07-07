@@ -731,7 +731,7 @@ void deinit_FileSystem(FileSystem_t * fs){
         deleteFile(prev);
     }
 
-    EXIT_ON(pthread_mutex_destroy(&fs->fs_lock), != 0);
+    pthread_mutex_destroy(&fs->fs_lock);
 
     free(fs);
 }

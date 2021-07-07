@@ -252,7 +252,6 @@ int main(int argc, char ** argv){
 
     // dealloca il fs con tutti i file
         
-    deinit_FileSystem(fs);
     close(pipeReadig_fd);
     close(pipeWriting_fd);
     close(pipeSigReading);
@@ -269,9 +268,8 @@ int main(int argc, char ** argv){
     pthread_cond_destroy(&ready_clients->full);
     pthread_cond_destroy(&ready_clients->empty);
     free(ready_clients);
+    deinit_FileSystem(fs);
     
-    
-
     /* FINE operazioni di chiusura */
 
     return 0;

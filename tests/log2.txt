@@ -102,3 +102,6 @@ invio al client 9 il file tests/files/gif1.gif di 275446 byte
 file tests/files/gif1.gif eliminato dal server
 il client 9 ha completato la richiesta. Valore ritornato: 0
 chiudo il client 9 e tutti i file aperti
+Segnale ricevuto
+inizio terminazione veloce
+Uscito dal ciclo manager

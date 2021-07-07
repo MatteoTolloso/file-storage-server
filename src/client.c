@@ -5,8 +5,6 @@
 #include <dirent.h>
 #include <time.h>
 
-//lo deve prendere da riga di comando 
-#define SOCKNAME "./mysock"
 
 #define HELP "stringa di aiuto"
 
@@ -24,7 +22,6 @@ void send_dir(char * str);
 void send_file(char str[]);
 void read_file(char * str);
 void read_n_file(char * str);
-int msleep(long msec);
 void client_log(char * format, ... );
 
 int main(int argc, char ** argv){
@@ -167,8 +164,11 @@ int main(int argc, char ** argv){
         switch (comand)
         {
         
-            case 'f':;{  
-                PIE(openConnection(argv[i+1]));
+            case 'f':;{
+                struct timespec abstime;
+                abstime.tv_sec = 3;     // provo per 3 secondi (dando il tempo al server di avviarsi)
+                abstime.tv_nsec = 0; 
+                PIE(openConnection(argv[i+1], 500, abstime));   // ogni 500 ms
                 client_log("Apro la connessione con il socket: %s", argv[i+1]);
                 i++; // devo saltare un ulteriore parametro
                 msleep(delay);
@@ -234,6 +234,8 @@ int main(int argc, char ** argv){
             
         i++;
     }
+
+    closeConnection(__sockname);
     
     return 0;
 
@@ -560,25 +562,6 @@ void send_dir(char * str){
 
 }
 
-int msleep(long msec){
-    struct timespec ts;
-    int res;
-
-    if (msec < 0)
-    {
-        errno = EINVAL;
-        return -1;
-    }
-
-    ts.tv_sec = msec / 1000;
-    ts.tv_nsec = (msec % 1000) * 1000000;
-
-    do {
-        res = nanosleep(&ts, &ts);
-    } while (res && errno == EINTR);
-
-    return res;
-}
 
 void client_log(char * format, ... ){
     if(foundp == 0) return;

@@ -42,6 +42,5 @@ il client 9 ha completato la richiesta. Valore ritornato: 0
 il client 9 ha richiesto l'eliminazione di tests/files/test2
 il client 9 ha completato la richiesta. Valore ritornato: 0
 chiudo il client 9 e tutti i file aperti
-Segnale ricevuto
 inizio terminazione lenta
 Uscito dal ciclo manager

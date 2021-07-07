@@ -48,7 +48,7 @@
 #define CLOSE_F 8
 #define REMOVE_F 9
 
-int openConnection(const char* sockname/*, int msec, const struct timespec abstime */);
+int openConnection(const char* sockname, int msec, const struct timespec abstime);
 int closeConnection(const char* sockname);
 int openFile(const char* pathname, int flags);
 int writeFile(char* pathname, char * dirname);
@@ -66,7 +66,9 @@ void unlock_file(char * str);
 void remove_file(char * str);
 int readn(int fd, void *ptr, size_t n);
 int writen(int fd, void *ptr, size_t n);
-
+void ms2ts(struct timespec *ts, unsigned long ms);
+void timespec_diff(struct timespec *a, struct timespec *b, struct timespec *result);
+void msleep(int msec);
 
 #define PIE(exp) \
         if( (exp) == -1){ \

@@ -1,5 +1,7 @@
 
 #include <myserverApi.h>
+#include <time.h>
+
 
 int socketfd = 0, myerrno;
 char __sockname[UNIX_PATH_MAX];
@@ -624,11 +626,7 @@ int openFile(const char* pathname, int flags){
 }
 
 
-int openConnection(const char* sockname /*, int msec, const struct timespec abstime*/){
-
-    // todo 
-        //msec
-        //abstime
+int openConnection(const char* sockname , int msec, const struct timespec abstime){
     
     if (sockname == NULL || strnlen(sockname, UNIX_PATH_MAX) >= UNIX_PATH_MAX) {
         myerrno = E_INV_SCK;
@@ -646,14 +644,46 @@ int openConnection(const char* sockname /*, int msec, const struct timespec abst
     server_addr.sun_family = AF_UNIX;
     strcpy(server_addr.sun_path, sockname);
 
-    if (connect(socketfd, (struct sockaddr *)&server_addr, sizeof(server_addr)) != 0) {
-        myerrno = errno;
-        return -1;
+    struct timespec toWait, _abstime = abstime;
+    ms2ts(&toWait, msec);
+
+    while(_abstime.tv_nsec > 0 || _abstime.tv_sec > 0){
+        if (connect(socketfd, (struct sockaddr *)&server_addr, sizeof(server_addr)) != 0) {
+            perror("Tentativo di connessione fallito");
+        }
+        else{
+            return 0;
+        }
+        nanosleep(&toWait, NULL);
+        timespec_diff(&_abstime, &toWait, &_abstime);
     }
+
+    myerrno = errno;
+    return -1;
 
     return 0;
 
 }
+void timespec_diff(struct timespec *a, struct timespec *b, struct timespec *result) {
+    result->tv_sec  = a->tv_sec  - b->tv_sec;
+    result->tv_nsec = a->tv_nsec - b->tv_nsec;
+    if (result->tv_nsec < 0) {
+        --result->tv_sec;
+        result->tv_nsec += 1000000000L;
+    }
+}
+
+void ms2ts(struct timespec *ts, unsigned long ms){
+ts->tv_sec = ms / 1000;
+ts->tv_nsec = (ms % 1000) * 1000000;
+}
+
+void msleep(int msec){
+    struct timespec toWait;
+    ms2ts(&toWait, msec);
+    nanosleep(&toWait, NULL);
+}
+
 
 int closeConnection(const char* sockname){
 
