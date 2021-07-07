@@ -1,0 +1,186 @@
+Configurazione:
+socket name:./mysock
+log_path:./tests/log3.txt
+max_num_file:100
+max_dim_storage:32000000
+num_thread_worker:8
+
+Server pronto
+Nuova connessione con client 9
+Il client 9 ha richiesto una open sul file tests/files/file03 con flag 3
+Il client 9 ha completato la richiesta. Valore ritornato: 0
+Nuova connessione con client 10
+Il client 9 ha richiesto una write sul file tests/files/file03 di 500 byte
+Il client 9 ha completato la richiesta. Valore ritornato: 0
+Il client 10 ha richiesto una open sul file tests/files/test1 con flag 3
+Il client 10 ha completato la richiesta. Valore ritornato: 0
+Il client 9 ha richiesto una open sul file tests/files/file10 con flag 3
+Il client 9 ha completato la richiesta. Valore ritornato: 0
+Il client 10 ha richiesto una write sul file tests/files/test1 di 20 byte
+Il client 10 ha completato la richiesta. Valore ritornato: 0
+Il client 9 ha richiesto una write sul file tests/files/file10 di 500 byte
+Il client 9 ha completato la richiesta. Valore ritornato: 0
+Il client 10 ha richiesto una open sul file tests/files/test2 con flag 3
+Il client 10 ha completato la richiesta. Valore ritornato: 0
+Il client 9 ha richiesto una open sul file tests/files/file07 con flag 3
+Il client 9 ha completato la richiesta. Valore ritornato: 0
+Nuova connessione con client 11
+Il client 11 ha richiesto una open sul file tests/files/test1 con flag 0
+Il client 11 ha completato la richiesta. Valore ritornato: 0
+Il client 9 ha richiesto una write sul file tests/files/file07 di 500 byte
+Il client 9 ha completato la richiesta. Valore ritornato: 0
+Il client 11 ha richiesto una lock su tests/files/test1
+Il client 11 ha completato la richiesta. Valore ritornato: 146
+Nuova connessione con client 12
+Il client 10 ha richiesto una write sul file tests/files/test2 di 22 byte
+Il client 10 ha completato la richiesta. Valore ritornato: 0
+Il client 9 ha richiesto una open sul file tests/files/file09 con flag 3
+Il client 9 ha completato la richiesta. Valore ritornato: 0
+Il client 12 ha richiesto una open sul file tests/files/test1 con flag 0
+Il client 12 ha completato la richiesta. Valore ritornato: 0
+Il client 11 ha richiesto una open sul file tests/files/test2 con flag 0
+Il client 11 ha completato la richiesta. Valore ritornato: 0
+Il client 12 ha richiesto l'eliminazione di tests/files/test1
+Il client 12 ha completato la richiesta. Valore ritornato: 142
+Il client 9 ha richiesto una write sul file tests/files/file09 di 500 byte
+Il client 9 ha completato la richiesta. Valore ritornato: 0
+Il client 10 ha richiesto la lettura di tests/files/test1
+Il client 11 ha richiesto una lock su tests/files/test2
+Il client 11 ha completato la richiesta. Valore ritornato: 146
+Invio al client 10 il file tests/files/test1 di 20 byte
+Il client 9 ha richiesto una open sul file tests/files/video1.mp4 con flag 3
+Il client 9 ha completato la richiesta. Valore ritornato: 0
+Il client 10 ha completato la richiesta. Valore ritornato: 0
+Il client 12 ha richiesto una open sul file tests/files/test2 con flag 0
+Il client 12 ha completato la richiesta. Valore ritornato: 0
+Il client 12 ha richiesto l'eliminazione di tests/files/test2
+Il client 12 ha completato la richiesta. Valore ritornato: 142
+Il client 10 ha richiesto la lettura di tests/files/test2
+Invio al client 10 il file tests/files/test2 di 22 byte
+Il client 10 ha completato la richiesta. Valore ritornato: 0
+Chiudo il client 12 e tutti i file aperti
+Chiudo il client 10 e tutti i file aperti
+Il client 11 ha richiesto una open sul file tests/files/test1 con flag 0
+Il client 11 ha completato la richiesta. Valore ritornato: 0
+Il client 11 ha richiesto una unlock su tests/files/test1
+Il client 11 ha completato la richiesta. Valore ritornato: 0
+Il client 11 ha richiesto una open sul file tests/files/test2 con flag 0
+Il client 11 ha completato la richiesta. Valore ritornato: 0
+Il client 11 ha richiesto una unlock su tests/files/test2
+Il client 11 ha completato la richiesta. Valore ritornato: 0
+Chiudo il client 11 e tutti i file aperti
+Il client 9 ha richiesto una write sul file tests/files/video1.mp4 di 21069678 byte
+Il client 9 ha completato la richiesta. Valore ritornato: 0
+Il client 9 ha richiesto una open sul file tests/files/gif2.gif con flag 3
+Il client 9 ha completato la richiesta. Valore ritornato: 0
+Il client 9 ha richiesto una write sul file tests/files/gif2.gif di 982770 byte
+Il client 9 ha completato la richiesta. Valore ritornato: 0
+Il client 9 ha richiesto una open sul file tests/files/file06 con flag 3
+Il client 9 ha completato la richiesta. Valore ritornato: 0
+Il client 9 ha richiesto una write sul file tests/files/file06 di 500 byte
+Il client 9 ha completato la richiesta. Valore ritornato: 0
+Il client 9 ha richiesto una open sul file tests/files/file08 con flag 3
+Il client 9 ha completato la richiesta. Valore ritornato: 0
+Il client 9 ha richiesto una write sul file tests/files/file08 di 500 byte
+Il client 9 ha completato la richiesta. Valore ritornato: 0
+Il client 9 ha richiesto una open sul file tests/files/image3.jpg con flag 3
+Il client 9 ha completato la richiesta. Valore ritornato: 0
+Il client 9 ha richiesto una write sul file tests/files/image3.jpg di 1466054 byte
+Il client 9 ha completato la richiesta. Valore ritornato: 0
+Il client 9 ha richiesto una open sul file tests/files/image1.jpg con flag 3
+Il client 9 ha completato la richiesta. Valore ritornato: 0
+Il client 9 ha richiesto una write sul file tests/files/image1.jpg di 1022701 byte
+Il client 9 ha completato la richiesta. Valore ritornato: 0
+Il client 9 ha richiesto una open sul file tests/files/test4 con flag 3
+Il client 9 ha completato la richiesta. Valore ritornato: 0
+Il client 9 ha richiesto una write sul file tests/files/test4 di 16 byte
+Il client 9 ha completato la richiesta. Valore ritornato: 0
+Il client 9 ha richiesto una open sul file tests/files/30mb_file con flag 3
+Il client 9 ha completato la richiesta. Valore ritornato: 0
+Il client 9 ha richiesto una write sul file tests/files/30mb_file di 31457280 byte
+Invio al client 9 il file tests/files/file03 di 500 byte
+File tests/files/file03 eliminato dal server
+Invio al client 9 il file tests/files/test1 di 20 byte
+File tests/files/test1 eliminato dal server
+Invio al client 9 il file tests/files/file10 di 500 byte
+File tests/files/file10 eliminato dal server
+Invio al client 9 il file tests/files/test2 di 22 byte
+File tests/files/test2 eliminato dal server
+Invio al client 9 il file tests/files/file07 di 500 byte
+File tests/files/file07 eliminato dal server
+Invio al client 9 il file tests/files/file09 di 500 byte
+File tests/files/file09 eliminato dal server
+Invio al client 9 il file tests/files/video1.mp4 di 21069678 byte
+File tests/files/video1.mp4 eliminato dal server
+Invio al client 9 il file tests/files/gif2.gif di 982770 byte
+File tests/files/gif2.gif eliminato dal server
+Invio al client 9 il file tests/files/file06 di 500 byte
+File tests/files/file06 eliminato dal server
+Invio al client 9 il file tests/files/file08 di 500 byte
+File tests/files/file08 eliminato dal server
+Invio al client 9 il file tests/files/image3.jpg di 1466054 byte
+File tests/files/image3.jpg eliminato dal server
+Invio al client 9 il file tests/files/image1.jpg di 1022701 byte
+File tests/files/image1.jpg eliminato dal server
+Il client 9 ha completato la richiesta. Valore ritornato: 0
+Il client 9 ha richiesto una open sul file tests/files/test3 con flag 3
+Il client 9 ha completato la richiesta. Valore ritornato: 0
+Il client 9 ha richiesto una write sul file tests/files/test3 di 17 byte
+Il client 9 ha completato la richiesta. Valore ritornato: 0
+Il client 9 ha richiesto una open sul file tests/files/i promessi sposi.pdf con flag 3
+Il client 9 ha completato la richiesta. Valore ritornato: 0
+Il client 9 ha richiesto una write sul file tests/files/i promessi sposi.pdf di 2473885 byte
+Invio al client 9 il file tests/files/test4 di 16 byte
+File tests/files/test4 eliminato dal server
+Invio al client 9 il file tests/files/30mb_file di 31457280 byte
+File tests/files/30mb_file eliminato dal server
+Il client 9 ha completato la richiesta. Valore ritornato: 0
+Il client 9 ha richiesto una open sul file tests/files/file01 con flag 3
+Il client 9 ha completato la richiesta. Valore ritornato: 0
+Il client 9 ha richiesto una write sul file tests/files/file01 di 500 byte
+Il client 9 ha completato la richiesta. Valore ritornato: 0
+Il client 9 ha richiesto una open sul file tests/files/test1 con flag 3
+Il client 9 ha completato la richiesta. Valore ritornato: 0
+Il client 9 ha richiesto una write sul file tests/files/test1 di 20 byte
+Il client 9 ha completato la richiesta. Valore ritornato: 0
+Il client 9 ha richiesto una open sul file tests/files/gif1.gif con flag 3
+Il client 9 ha completato la richiesta. Valore ritornato: 0
+Il client 9 ha richiesto una write sul file tests/files/gif1.gif di 275446 byte
+Il client 9 ha completato la richiesta. Valore ritornato: 0
+Il client 9 ha richiesto una open sul file tests/files/image2.jpg con flag 3
+Il client 9 ha completato la richiesta. Valore ritornato: 0
+Il client 9 ha richiesto una write sul file tests/files/image2.jpg di 1143670 byte
+Il client 9 ha completato la richiesta. Valore ritornato: 0
+Il client 9 ha richiesto una open sul file tests/files/100mb_file con flag 3
+Il client 9 ha completato la richiesta. Valore ritornato: 0
+Il client 9 ha richiesto una write sul file tests/files/100mb_file di 104857600 byte
+Il client 9 ha completato la richiesta. Valore ritornato: 147
+Il client 9 ha richiesto una open sul file tests/files/10mb_file con flag 3
+Il client 9 ha completato la richiesta. Valore ritornato: 0
+Il client 9 ha richiesto una write sul file tests/files/10mb_file di 10485760 byte
+Il client 9 ha completato la richiesta. Valore ritornato: 0
+Il client 9 ha richiesto una open sul file tests/files/test2 con flag 3
+Il client 9 ha completato la richiesta. Valore ritornato: 0
+Il client 9 ha richiesto una write sul file tests/files/test2 di 22 byte
+Il client 9 ha completato la richiesta. Valore ritornato: 0
+Il client 9 ha richiesto una open sul file tests/files/file05 con flag 3
+Il client 9 ha completato la richiesta. Valore ritornato: 0
+Il client 9 ha richiesto una write sul file tests/files/file05 di 500 byte
+Il client 9 ha completato la richiesta. Valore ritornato: 0
+Il client 9 ha richiesto una open sul file tests/files/file02 con flag 3
+Il client 9 ha completato la richiesta. Valore ritornato: 0
+Il client 9 ha richiesto una write sul file tests/files/file02 di 500 byte
+Il client 9 ha completato la richiesta. Valore ritornato: 0
+Il client 9 ha richiesto una open sul file tests/files/file04 con flag 3
+Il client 9 ha completato la richiesta. Valore ritornato: 0
+Il client 9 ha richiesto una write sul file tests/files/file04 di 500 byte
+Il client 9 ha completato la richiesta. Valore ritornato: 0
+Il client 9 ha richiesto una open sul file tests/files/15mb_file con flag 3
+Il client 9 ha completato la richiesta. Valore ritornato: 0
+Il client 9 ha richiesto una write sul file tests/files/15mb_file di 15728640 byte
+Il client 9 ha completato la richiesta. Valore ritornato: 0
+Il client 9 ha richiesto una open sul file tests/files/divina commedia.pdf con flag 3
+Il client 9 ha completato la richiesta. Valore ritornato: 0
+Il client 9 ha richiesto una write sul file tests/files/divina commedia.pdf di 895380 byte
+Il client 9 ha completato la richiesta. Valore ritornato: 0
+Chiudo il client 9 e tutti i file aperti

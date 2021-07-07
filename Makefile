@@ -17,7 +17,7 @@ objpath = ./obj/
 
 srcpath = ./src/
 
-.PHONY: clean cleanall test1 test2
+.PHONY: clean cleanall test1 test2 test3
 
 #all 
 
@@ -74,3 +74,6 @@ test1	: ./server ./client
 
 test2	: ./server ./client
 	./tests/test2.sh
+
+test3	: ./server ./client
+	./tests/test3.sh
