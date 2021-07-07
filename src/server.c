@@ -115,15 +115,17 @@ int main(int argc, char ** argv){
     
     pthread_t * tidArr;
     EXIT_ON( tidArr = malloc(sizeof(pthread_t) * num_thread_worker), == NULL);
-    WorkerArgs * args;
-    EXIT_ON(args = malloc(sizeof(WorkerArgs)), == NULL);
+    WorkerArgs args;
     
-    args->pipeWriting_fd = pipeWriting_fd;
-    args->q = ready_clients;
-    args->fs = fs;
+    args.pipeWriting_fd = pipeWriting_fd;
+    args.q = ready_clients;
+    args.fs = fs;
 
     for(int i=0; i<num_thread_worker; ++i){
-	    EXIT_ON(pthread_create(&tidArr[i], NULL, worker, (void*)args), != 0);
+        pthread_t
+        ret;
+	    EXIT_ON(pthread_create(&ret, NULL, worker, (void*)&args), != 0);
+        tidArr[i] = ret;
     }
 
 
@@ -144,13 +146,15 @@ int main(int argc, char ** argv){
     fd_max++; // per sicurezza, perchè c'è anche da considerare il fd del file config
     int endMode=0;
 
+    fprintf(stderr, "DEBUG: pipeSigReading: %d \n", pipeSigReading);
+
     while(endMode==0 || activeClients > 0){  // finchè non è richiesta la terminazione o ci sono client attivi
         //fprintf(stderr, "\nendMode = %d, activeClients = %d, fd_max = %d\n", endMode, activeClients, fd_max);
         tmpset = set;        
         if( select(fd_max + 1, &tmpset, NULL, NULL, NULL) == -1) // attenzione all'arrivo del segnale
         { 
-            if(errno == EINTR) server_log("Segnale ricevuto");
-            else EXIT_ON("errore sconosciuto",);
+            perror("select");
+            server_log("Segnale %d ricevuto", errno); 
         }
          
         if(FD_ISSET(pipeSigReading, &tmpset)){  // è arrivato un segnale
@@ -158,14 +162,17 @@ int main(int argc, char ** argv){
             
             if(endMode == 1) {
                 FD_CLR(socket_fd, &set);   // terminazione lenta, non ascolto più il socket
-                updatemax(set, fd_max);
+                fd_max = updatemax(set, fd_max);
                 server_log("inizio terminazione lenta");
             }
 
             if(endMode == 2){   // terminazione veloce 
                 
                 for(int i=0; i<fd_max+1; i++){  // chiudo i client connessi (ma che non hanno richieste in corso)
-                    if(FD_ISSET(i, &set) && (i != pipeReadig_fd) && (i != socket_fd)) close(i);
+                    if(FD_ISSET(i, &set) && (i != pipeReadig_fd) && (i != socket_fd) && (i != pipeSigReading)){
+                        close(i);
+                        FD_CLR(i, &set);
+                    }
                 }
                 FD_CLR(socket_fd, &set); // non ascolto nuove richieste di connessione
                 fd_max = updatemax(set, fd_max);
@@ -213,14 +220,15 @@ int main(int argc, char ** argv){
                     } 
                 }
                 else{   // un client già conesso ha inviato una richiesta (oppure ha chiuso)
-                    if (endMode != 2){
+                    if (endMode != 2){  // non sto terminando velocemente
                         SharedQueue_push(ready_clients, i); // verrà gestito da un worker
                         FD_CLR(i, &set);
-                        FD_CLR(i, &tmpset);
                         if (i == fd_max) fd_max = updatemax(set, fd_max);
                     }
-                    else{
+                    else{   // sto terminando velocemente
                         close(i);
+                        FD_CLR(i, &set);
+                        if (i == fd_max) fd_max = updatemax(set, fd_max);
                         activeClients--;
                     }
                 }
@@ -229,6 +237,7 @@ int main(int argc, char ** argv){
     }
 
     server_log("Uscito dal ciclo manager");
+    statistiche(fs);    
     /* FINE gestione delle richieste */
 
 
@@ -261,7 +270,7 @@ int main(int argc, char ** argv){
     fclose(logFile);
     free(log_path);
     free(tidArr);
-    free(args);
+    //free(args);
     
     free(ready_clients->set);
     pthread_mutex_destroy(&ready_clients->lock);

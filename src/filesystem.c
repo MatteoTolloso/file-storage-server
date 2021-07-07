@@ -3,6 +3,7 @@
 
 int fs_request_manager(FileSystem_t * fs, int clientFd, int requestType){
 
+    
     switch (requestType){
         
         case OPEN_F:;{
@@ -238,6 +239,10 @@ int removeFile_handler(FileSystem_t * fs, int clientFd, char * path){   // da te
 
     if (fs->firstFile == file) fs->firstFile = file->next;
     if (fs->lastFile == file) fs->lastFile = file->prev;
+    if(fs->actNumFile == 0){
+        fs->firstFile = NULL;
+        fs->lastFile = NULL;
+    }
 
     
     f_doneWrite(file);
@@ -547,7 +552,7 @@ int openFile_handler(FileSystem_t * fs, int clientFd, char * path, int flags){
 
         // devo aggiungere un file
         
-        if(fs->actNumFile + 1 == fs->maxNumFile){   // parte l'algoritmo della cache 
+        if(fs->actNumFile + 1 > fs->maxNumFile){   // parte l'algoritmo della cache 
             File_t * tmp = cacheEvict(fs, NULL, 0);
             assert(tmp != NULL);
             f_startWrite(tmp);
@@ -644,21 +649,42 @@ File_t * cacheEvict(FileSystem_t * fs, File_t * f, int flag){
     while(tmp != NULL){
         f_startRead(tmp);
 
-        
         if(tmp != f && ((tmp->size != 0) || !flag)){ // deve essere diverso dal file che sto scrivendo
 
             f_doneRead(tmp);
             f_startWrite(tmp);   
             fs->actSize -= tmp->size;
             fs->actNumFile--;
-            fs->firstFile = tmp->next;
-            f_doneWrite(tmp); // quando esco da un file in scrittura, non c'è più nessuno nemmeno in attesa
-            if(fs->firstFile != NULL){
-                f_startWrite(fs->firstFile);
-                (fs->firstFile)->prev = NULL;
-                f_doneWrite(fs->firstFile);
-            } 
             
+            if(fs->firstFile == tmp){
+                fs->firstFile = tmp->next;
+            }
+            if(fs->lastFile == tmp){
+                fs->lastFile = tmp->prev;
+            }
+            if(tmp->prev != NULL){
+                f_startWrite(tmp->prev);
+                (tmp->prev)->next = tmp->next;
+                f_doneWrite(tmp->prev);
+            }
+            if(tmp->next != NULL){
+                f_startWrite(tmp->next);
+                (tmp->next)->prev = tmp->prev;
+                f_doneWrite(tmp->next);
+            }
+            if(tmp->next == NULL){
+                f_startWrite(tmp->prev);
+                (tmp->prev)->next = NULL;
+                f_doneWrite(tmp->prev);
+                fs->lastFile = tmp->prev;
+            }
+            if(fs->actNumFile == 0){
+                fs->firstFile = NULL;
+                fs->lastFile = NULL;
+            }
+            f_doneWrite(tmp); // quando esco da un file in scrittura, non c'è più nessuno nemmeno in attesa
+            
+            fs->evictCount++;
             return tmp;
             
         }
@@ -666,7 +692,7 @@ File_t * cacheEvict(FileSystem_t * fs, File_t * f, int flag){
         tmp = tmp->next; 
         f_doneRead(prev);
     }
-    EXIT_ON("evict fail", );
+    EXIT_ON("evict fail", );    // per le precondizioni della chiamata, l'evict non dovrebbe mai fallire
     return NULL;
 }
 
@@ -710,7 +736,7 @@ FileSystem_t * init_FileSystem(int maxNumFile, int maxSize){
     fs->maxNumFile = maxNumFile;
     fs->maxRSize = 0;
     fs->maxRNumFile = 0;
-    fs->cacheAlgoCount = 0;
+    fs->evictCount = 0;
 
     EXIT_ON(pthread_mutex_init(&fs->fs_lock, NULL), != 0);
 
@@ -731,7 +757,7 @@ void deinit_FileSystem(FileSystem_t * fs){
         deleteFile(prev);
     }
 
-    pthread_mutex_destroy(&fs->fs_lock);
+    //pthread_mutex_destroy(&fs->fs_lock);
 
     free(fs);
 }
@@ -833,7 +859,22 @@ void printFs(FileSystem_t * fs){
     File_t * f = fs->firstFile;
 
     while(f != NULL){
-        printf("path file: %s\n", f->path);
+        printf(" %s,", f->path);
         f = f->next;
+    }
+}
+
+void statistiche(FileSystem_t * fs){
+    printf("*** Statistiche di utilizzo ***\n");
+    printf("Numero di file massimo memorizzato: %d\n", fs->maxRNumFile);
+    printf("Occupazione di memoria massima raggiunta: %d\n", fs->maxRSize);
+    printf("Numero di evict nella cache: %d\n", fs->evictCount);
+    printf("Ci sono %d file nel server", fs->actNumFile);
+    if(fs->actNumFile > 0){
+        printf(":");
+        printFs(fs);
+    }
+    else{
+        printf("\n");
     }
 }

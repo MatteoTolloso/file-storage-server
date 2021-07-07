@@ -65,7 +65,7 @@ typedef struct FileSystem_t{
     int maxNumFile; //massimo numero file possibile
     int maxRSize;   //massima dimensione raggiunta
     int maxRNumFile;//massimo numero di file raggiunto
-    int cacheAlgoCount; // numero di esecuzioni algoritmo cache
+    int evictCount; // numero di esecuzioni algoritmo cache
 
     pthread_mutex_t fs_lock;
 
@@ -99,6 +99,7 @@ int closeFile_handler(FileSystem_t * fs, int clientFd, char * path);
 int removeFile_handler(FileSystem_t * fs, int clientFd, char * path);
 int readFile_handler(FileSystem_t * fs, int clientFd, char * path);
 int readNFiles_handler(FileSystem_t * fs, int clientFd, int numFile);
+void statistiche(FileSystem_t * fs);
 
 
 #endif /* _MYFILESYSTEM_H */
