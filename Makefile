@@ -64,9 +64,7 @@ $(objpath)serverApi.o: $(srcpath)serverApi.c $(includes)
 
 
 cleanall	: 
-	rm -f $(obj) $(objpath)client.o $(objpath)serverApi.o ./server ./client
-	rm -r ./tests/dest1/ *
-	rm -r ./tests/evictSaves/ *
+	./clean.sh
 
 
 test1	: ./server ./client

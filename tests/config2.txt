@@ -1,5 +1,5 @@
 socket_name=./mysock;
 num_thread_worker=4;
 max_dim_storage=1000000;
-max_num_file=10;
+max_num_file=100;
 log_file_path=./tests/log2.txt;
