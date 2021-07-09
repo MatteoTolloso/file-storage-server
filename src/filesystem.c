@@ -858,7 +858,7 @@ void printFs(FileSystem_t * fs){
     File_t * f = fs->firstFile;
 
     while(f != NULL){
-        printf(" %s,", f->path);
+        printf(" \"%s\"", f->path);
         f = f->next;
     }
 }
@@ -872,6 +872,7 @@ void statistiche(FileSystem_t * fs){
     if(fs->actNumFile > 0){
         printf(":");
         printFs(fs);
+        printf("\n");
     }
     else{
         printf("\n");

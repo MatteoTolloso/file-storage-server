@@ -17,6 +17,8 @@ objpath = ./obj/
 
 srcpath = ./src/
 
+libpath = ./lib/
+
 .PHONY: clean cleanall test1 test2 test3
 
 #all 
@@ -28,8 +30,8 @@ all: ./server ./client
 ./server: $(obj)
 	gcc $(obj) -o $@ -pthread
 
-./client: ./obj/client.o ./obj/serverApi.o
-	gcc $^ -o $@ -pthread
+./client: $(objpath)client.o $(libpath)libServerApi.a
+	gcc $< -o $@ -L ./lib -lServerApi
 
 #obj file for server
 
@@ -58,6 +60,9 @@ $(objpath)linkedlist.o: $(srcpath)linkedlist.c $(includes)
 
 $(objpath)client.o: $(srcpath)client.c $(includes)
 	gcc $< $(flags) -c -o $@ 
+
+$(libpath)libServerApi.a: $(objpath)serverApi.o
+	ar rvs $(libpath)libServerApi.a $(objpath)serverApi.o
 
 $(objpath)serverApi.o: $(srcpath)serverApi.c $(includes)
 	gcc $< $(flags) -c -o $@ 
