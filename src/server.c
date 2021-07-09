@@ -131,7 +131,6 @@ int main(int argc, char ** argv){
 
 
     /* INIZIO gestione delle richeste */
-    
     int socket_fd = init_server(sck_name);
     int activeClients = 0;
     fd_set tmpset, set;

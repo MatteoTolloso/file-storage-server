@@ -1,0 +1,7 @@
+Configurazione:
+socket name:./mysock
+log_path:./tests/log3.txt
+max_num_file:100
+max_dim_storage:32000000
+num_thread_worker:8
+

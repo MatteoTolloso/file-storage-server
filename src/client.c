@@ -166,7 +166,7 @@ int main(int argc, char ** argv){
         
             case 'f':;{
                 struct timespec abstime;
-                abstime.tv_sec = 3;     // provo per 3 secondi (dando il tempo al server di avviarsi)
+                abstime.tv_sec = 5;     // provo per 3 secondi (dando il tempo al server di avviarsi)
                 abstime.tv_nsec = 0; 
                 PIE(openConnection(argv[i+1], 500, abstime));   // ogni 500 ms
                 client_log("Apro la connessione con il socket: %s", argv[i+1]);

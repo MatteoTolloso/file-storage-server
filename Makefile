@@ -31,7 +31,7 @@ all: ./server ./client
 	gcc $(obj) -o $@ -pthread
 
 ./client: $(objpath)client.o $(libpath)libServerApi.a
-	gcc $< -o $@ -L ./lib -lServerApi
+	gcc $< -o $@ -L $(libpath) -lServerApi
 
 #obj file for server
 
