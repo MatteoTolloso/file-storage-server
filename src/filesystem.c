@@ -119,6 +119,200 @@ int fs_request_manager(FileSystem_t * fs, int clientFd, int requestType){
 
 }
 
+int openFile_handler(FileSystem_t * fs, int clientFd, char * path, int flags){
+    
+    EXIT_ON(pthread_mutex_lock(&fs->fs_lock), != 0);    // prendo lock fs
+
+    server_log("Il client %d ha richiesto una open sul file %s con flag %d", clientFd, path, flags);
+
+    int retVal = 0;
+    File_t * file = searchFile(fs, path); // cerco il file 
+    
+    // agisco in base ai flag
+
+    if(file == NULL){     // file non esisteva
+        
+        if(flags == 0 || flags == 2){     //nessun flag o solo O_LOCK
+            retVal = E_NOT_EX; 
+            goto openFile_handler_END;
+        }
+
+        // devo aggiungere un file
+        
+        if(fs->actNumFile + 1 > fs->maxNumFile){   // parte l'algoritmo della cache 
+            File_t * tmp = cacheEvict(fs, NULL, 0);
+            assert(tmp != NULL);
+            f_startWrite(tmp);
+            
+            retVal = 1; // segnalo che sta per arrivare un file
+            if (writen(clientFd, &retVal, sizeof(int)) != sizeof(int)) perror("i file verranno persi");
+
+            server_log("Invio al client %d il file %s di %d byte", clientFd, tmp->path, tmp->size);
+        
+            if (writen(clientFd, &tmp->size, sizeof(int)) != sizeof(int))perror("i file verranno persi"); 
+            if (writen(clientFd, tmp->path, MAX_PATH) != MAX_PATH) perror("i file verranno persi"); 
+            if (writen(clientFd, tmp->cont, tmp->size) != tmp->size) perror("i file verranno persi"); 
+
+            f_doneRead(tmp);
+            deleteFile(tmp);
+
+            retVal = -1; //segnalo al client che i file sono finiti
+            if (writen(clientFd, &retVal, sizeof(int)) != sizeof(int)) perror("errore client");
+        }
+
+        File_t * newfile  = init_File(path, clientFd); 
+        
+        f_startWrite(newfile);
+        if(flags == 3){  // O_CREATE | O_LOCK
+            newfile->lockedBy = clientFd;
+        }
+        if(fs->actNumFile == 0){
+            fs->lastFile = newfile;
+            fs->firstFile = newfile;
+        }
+        else{
+            (fs->lastFile)->next = newfile;
+            newfile->prev = fs->lastFile;
+            fs->lastFile = newfile;
+        }
+        list_insert(&newfile->openedBy, clientFd);
+        f_doneWrite(newfile);
+        fs->actNumFile++;
+        if(fs->actNumFile > fs->maxRNumFile) fs->maxRNumFile = fs->actNumFile;        
+        retVal = 0;   
+        goto openFile_handler_END;   
+    }
+
+    if(file != NULL){ // il file esiste
+
+        if (flags == 1 || flags == 3){    // O_CREATE oppure O_CREATE | O_LOCK
+            retVal = E_ALR_EX;   
+            goto openFile_handler_END;   
+
+        }
+
+        if(flags == 0){ // nessun flag
+            f_startWrite(file);
+            list_insert( &file->openedBy, clientFd);
+            f_doneWrite(file);  
+            retVal = 0;   
+            goto openFile_handler_END;   
+
+        }
+
+        if (flags == 2){    // O_LOCK
+            f_startWrite(file);
+           
+            if(file->lockedBy == 0){
+                file->lockedBy = clientFd;
+                list_insert(&file->openedBy, clientFd);
+                f_doneWrite(file);
+                retVal = 0;   
+                goto openFile_handler_END;   
+            }
+            else{
+                f_doneWrite(file);
+                retVal = E_ALR_LK;
+                goto openFile_handler_END;   
+            }
+        }
+    }
+    retVal = 0;
+    openFile_handler_END:
+    server_log("Il client %d ha completato la richiesta. Valore ritornato: %d", clientFd, retVal);
+    EXIT_ON(pthread_mutex_unlock(&fs->fs_lock), != 0);   
+    if (writen(clientFd, &retVal, sizeof(int)) != sizeof(int)) return -1;
+    else return 0;
+}
+
+
+int writeFile_handler(FileSystem_t * fs, int clientFd, char* path, int size, char * buf){
+
+    EXIT_ON(pthread_mutex_lock(&fs->fs_lock), != 0);    // prendo lock fs
+    
+    server_log("Il client %d ha richiesto una write sul file %s di %d byte", clientFd, path, size);
+
+    int retVal = 0; // valore di ritorno che corrisponde a errno per il client
+    File_t * file = searchFile(fs, path); // cerco il file con quel path
+    
+    if(file == NULL){
+        retVal = E_NOT_EX;
+        goto writeFile_handler_END; //test da fare: lanciare il client
+    }
+
+    f_startRead(file); // devo levvere il file
+    
+    if(!list_mem(&file->openedBy, clientFd)){    // controllo se ho aperto il file
+        f_doneRead(file);
+        retVal = E_NOT_OPN;
+        goto writeFile_handler_END;
+    }
+
+    if(clientFd != file->lockedBy ){    // controllo se ho la lock sul file
+        f_doneRead(file);
+        retVal =  E_LOCK;
+        goto writeFile_handler_END;
+    }
+
+    if(file->size != 0){        // controllo se il file è stato già scritto
+        f_doneRead(file);
+        retVal = E_BAD_RQ;
+        goto writeFile_handler_END;
+    }
+    
+    if(fs->maxSize < size){  // non riuscirò mai a trovare lo spazio necessario
+        f_doneRead(file);
+        retVal = E_NO_SPACE;
+        goto writeFile_handler_END;
+    }
+    
+    f_doneRead(file);
+     
+    // fase di evict e salvataggio dei file da mandare al client
+    retVal = 0;
+    while((fs->maxSize - fs->actSize < size)){  // se lo spazio libero è minore di quello che devo inserire
+        
+        if (retVal == 0){
+            retVal = 1; // seganala che stanno per arrivare file
+            if (writen(clientFd, &retVal, sizeof(int)) != sizeof(int)) perror("i file verranno persi"); 
+        }
+        File_t * tmp = cacheEvict(fs, file, F_SIZE);  // scollega il file dal fs e non ci sono scrittori o lettori attivi o in attesa
+        
+        server_log("Invio al client %d il file %s di %d byte", clientFd, tmp->path, tmp->size);
+        
+        if (writen(clientFd, &tmp->size, sizeof(int)) != sizeof(int))perror("i file verranno persi"); 
+        if (writen(clientFd, tmp->path, MAX_PATH) != MAX_PATH) perror("i file verranno persi"); 
+        if (writen(clientFd, tmp->cont, tmp->size) != tmp->size) perror("i file verranno persi"); 
+
+        server_log("File %s eliminato dal server", tmp->path);
+        deleteFile(tmp);
+        
+    }
+    if(retVal == 1){    // se ho inviato file, devo segnalare che i file sono finiti
+        retVal = -1;    // i file sono finiti
+        if (writen(clientFd, &retVal, sizeof(int)) != sizeof(int)) perror("errore client");
+    }
+    
+    // scrittura nel file 
+
+    f_startWrite(file);
+    file->cont = buf;
+    file->size = size;
+    fs->actSize += size;
+    if(fs->actSize >fs->maxRSize) fs->maxRSize = fs->actSize;
+    f_doneWrite(file);
+    //fprintf(stderr, "scritto il file: %s con: %s\n", file->path, (char*)file->cont);
+
+    // messaggio finale per il client
+    retVal = 0;
+    writeFile_handler_END:
+    if(retVal != 0) free(buf);
+    server_log("Il client %d ha completato la richiesta. Valore ritornato: %d", clientFd, retVal);
+    EXIT_ON(pthread_mutex_unlock(&fs->fs_lock), != 0);
+    if (writen(clientFd, &retVal, sizeof(int)) != sizeof(int)) return -1;
+    else return 0;
+
+}
 int readNFiles_handler(FileSystem_t * fs, int clientFd, int numFile){
 
     EXIT_ON(pthread_mutex_lock(&fs->fs_lock), != 0);    // prendo lock fs
@@ -206,7 +400,7 @@ int readFile_handler(FileSystem_t * fs, int clientFd, char * path){
 
 }
 
-int removeFile_handler(FileSystem_t * fs, int clientFd, char * path){   // da testare bene ( e scrivere il lato client)
+int removeFile_handler(FileSystem_t * fs, int clientFd, char * path){  
     
     EXIT_ON(pthread_mutex_lock(&fs->fs_lock), != 0);    // prendo lock fs
 
@@ -443,199 +637,6 @@ int appendToFile_handler(FileSystem_t * fs,int clientFd, char * path, char * buf
 
 }
 
-int writeFile_handler(FileSystem_t * fs, int clientFd, char* path, int size, char * buf){
-
-    EXIT_ON(pthread_mutex_lock(&fs->fs_lock), != 0);    // prendo lock fs
-    
-    server_log("Il client %d ha richiesto una write sul file %s di %d byte", clientFd, path, size);
-
-    int retVal = 0; // valore di ritorno che corrisponde a errno per il client
-    File_t * file = searchFile(fs, path); // cerco il file con quel path
-    
-    if(file == NULL){
-        retVal = E_NOT_EX;
-        goto writeFile_handler_END; //test da fare: lanciare il client
-    }
-
-    f_startRead(file); // devo levvere il file
-    
-    if(!list_mem(&file->openedBy, clientFd)){    // controllo se ho aperto il file
-        f_doneRead(file);
-        retVal = E_NOT_OPN;
-        goto writeFile_handler_END;
-    }
-
-    if(clientFd != file->lockedBy ){    // controllo se ho la lock sul file
-        f_doneRead(file);
-        retVal =  E_LOCK;
-        goto writeFile_handler_END;
-    }
-
-    if(file->size != 0){        // controllo se il file è stato già scritto
-        f_doneRead(file);
-        retVal = E_BAD_RQ;
-        goto writeFile_handler_END;
-    }
-    
-    if(fs->maxSize < size){  // non riuscirò mai a trovare lo spazio necessario
-        f_doneRead(file);
-        retVal = E_NO_SPACE;
-        goto writeFile_handler_END;
-    }
-    
-    f_doneRead(file);
-     
-    // fase di evict e salvataggio dei file da mandare al client
-    retVal = 0;
-    while((fs->maxSize - fs->actSize < size)){  // se lo spazio libero è minore di quello che devo inserire
-        
-        if (retVal == 0){
-            retVal = 1; // seganala che stanno per arrivare file
-            if (writen(clientFd, &retVal, sizeof(int)) != sizeof(int)) perror("i file verranno persi"); 
-        }
-        File_t * tmp = cacheEvict(fs, file, F_SIZE);  // scollega il file dal fs e non ci sono scrittori o lettori attivi o in attesa
-        
-        server_log("Invio al client %d il file %s di %d byte", clientFd, tmp->path, tmp->size);
-        
-        if (writen(clientFd, &tmp->size, sizeof(int)) != sizeof(int))perror("i file verranno persi"); 
-        if (writen(clientFd, tmp->path, MAX_PATH) != MAX_PATH) perror("i file verranno persi"); 
-        if (writen(clientFd, tmp->cont, tmp->size) != tmp->size) perror("i file verranno persi"); 
-
-        server_log("File %s eliminato dal server", tmp->path);
-        deleteFile(tmp);
-        
-    }
-    if(retVal == 1){    // se ho inviato file, devo segnalare che i file sono finiti
-        retVal = -1;    // i file sono finiti
-        if (writen(clientFd, &retVal, sizeof(int)) != sizeof(int)) perror("errore client");
-    }
-    
-    // scrittura nel file 
-
-    f_startWrite(file);
-    file->cont = buf;
-    file->size = size;
-    fs->actSize += size;
-    if(fs->actSize >fs->maxRSize) fs->maxRSize = fs->actSize;
-    f_doneWrite(file);
-    //fprintf(stderr, "scritto il file: %s con: %s\n", file->path, (char*)file->cont);
-
-    // messaggio finale per il client
-    retVal = 0;
-    writeFile_handler_END:
-    if(retVal != 0) free(buf);
-    server_log("Il client %d ha completato la richiesta. Valore ritornato: %d", clientFd, retVal);
-    EXIT_ON(pthread_mutex_unlock(&fs->fs_lock), != 0);
-    if (writen(clientFd, &retVal, sizeof(int)) != sizeof(int)) return -1;
-    else return 0;
-
-}
-
-int openFile_handler(FileSystem_t * fs, int clientFd, char * path, int flags){
-    
-    EXIT_ON(pthread_mutex_lock(&fs->fs_lock), != 0);    // prendo lock fs
-
-    server_log("Il client %d ha richiesto una open sul file %s con flag %d", clientFd, path, flags);
-
-    int retVal = 0;
-    File_t * file = searchFile(fs, path); // cerco il file 
-    
-    // agisco in base ai flag
-
-    if(file == NULL){     // file non esisteva
-        
-        if(flags == 0 || flags == 2){     //nessun flag o solo O_LOCK
-            retVal = E_NOT_EX; 
-            goto openFile_handler_END;
-        }
-
-        // devo aggiungere un file
-        
-        if(fs->actNumFile + 1 > fs->maxNumFile){   // parte l'algoritmo della cache 
-            File_t * tmp = cacheEvict(fs, NULL, 0);
-            assert(tmp != NULL);
-            f_startWrite(tmp);
-            
-            retVal = 1; // segnalo che sta per arrivare un file
-            if (writen(clientFd, &retVal, sizeof(int)) != sizeof(int)) perror("i file verranno persi");
-
-            server_log("Invio al client %d il file %s di %d byte", clientFd, tmp->path, tmp->size);
-        
-            if (writen(clientFd, &tmp->size, sizeof(int)) != sizeof(int))perror("i file verranno persi"); 
-            if (writen(clientFd, tmp->path, MAX_PATH) != MAX_PATH) perror("i file verranno persi"); 
-            if (writen(clientFd, tmp->cont, tmp->size) != tmp->size) perror("i file verranno persi"); 
-
-            f_doneRead(tmp);
-            deleteFile(tmp);
-
-            retVal = -1; //segnalo al client che i file sono finiti
-            if (writen(clientFd, &retVal, sizeof(int)) != sizeof(int)) perror("errore client");
-        }
-
-        File_t * newfile  = init_File(path, clientFd); 
-        
-        f_startWrite(newfile);
-        if(flags == 3){  // O_CREATE | O_LOCK
-            newfile->lockedBy = clientFd;
-        }
-        if(fs->actNumFile == 0){
-            fs->lastFile = newfile;
-            fs->firstFile = newfile;
-        }
-        else{
-            (fs->lastFile)->next = newfile;
-            newfile->prev = fs->lastFile;
-            fs->lastFile = newfile;
-        }
-        list_insert(&newfile->openedBy, clientFd);
-        f_doneWrite(newfile);
-        fs->actNumFile++;
-        if(fs->actNumFile > fs->maxRNumFile) fs->maxRNumFile = fs->actNumFile;        
-        retVal = 0;   
-        goto openFile_handler_END;   
-    }
-
-    if(file != NULL){ // il file esiste
-
-        if (flags == 1 || flags == 3){    // O_CREATE oppure O_CREATE | O_LOCK
-            retVal = E_ALR_EX;   
-            goto openFile_handler_END;   
-
-        }
-
-        if(flags == 0){ // nessun flag
-            f_startWrite(file);
-            list_insert( &file->openedBy, clientFd);
-            f_doneWrite(file);  
-            retVal = 0;   
-            goto openFile_handler_END;   
-
-        }
-
-        if (flags == 2){    // O_LOCK
-            f_startWrite(file);
-           
-            if(file->lockedBy == 0){
-                file->lockedBy = clientFd;
-                list_insert(&file->openedBy, clientFd);
-                f_doneWrite(file);
-                retVal = 0;   
-                goto openFile_handler_END;   
-            }
-            else{
-                f_doneWrite(file);
-                retVal = E_ALR_LK;
-                goto openFile_handler_END;   
-            }
-        }
-    }
-    retVal = 0;
-    openFile_handler_END:
-    server_log("Il client %d ha completato la richiesta. Valore ritornato: %d", clientFd, retVal);
-    EXIT_ON(pthread_mutex_unlock(&fs->fs_lock), != 0);   
-    if (writen(clientFd, &retVal, sizeof(int)) != sizeof(int)) return -1;
-    else return 0;
-}
 
 File_t * cacheEvict(FileSystem_t * fs, File_t * f, int flag){ 
     // assume la lock sul fs, non ci sarà nessuno in attesa sul file ritornato
