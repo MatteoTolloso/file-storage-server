@@ -60,13 +60,5 @@ void worker_handler_installer(){
     sigfillset(&fullmask);
     EXIT_ON(pthread_sigmask(SIG_SETMASK, &fullmask, NULL), != 0);
 
-    
-    struct sigaction sa;
-    EXIT_ON(memset(&sa, 0, sizeof(struct sigaction)), == NULL);
-    
-    sa.sa_handler = print_handler;
-    EXIT_ON( sigaction(SIGPIPE, &sa, NULL), != 0);
-
-
 }
 

@@ -73,10 +73,16 @@ cleanall	:
 
 
 test1	: ./server ./client
+	mkdir -p tests/fileLetti
+	mkdir -p tests/fileEvict
 	./tests/test1.sh
 
 test2	: ./server ./client
+	mkdir -p tests/fileLetti
+	mkdir -p tests/fileEvict
 	./tests/test2.sh
 
 test3	: ./server ./client
+	mkdir -p tests/fileLetti
+	mkdir -p tests/fileEvict
 	./tests/test3.sh

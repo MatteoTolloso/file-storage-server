@@ -371,7 +371,11 @@ int readFile_handler(FileSystem_t * fs, int clientFd, char * path){
     
     File_t * file = searchFile(fs, path);
 
-    if(file == NULL){ retVal = E_NOT_EX; goto readFile_handler_END;}
+    if(file == NULL){ 
+        retVal = E_NOT_EX; 
+        EXIT_ON(pthread_mutex_unlock(&fs->fs_lock), != 0);
+        goto readFile_handler_END;
+    }
 
     f_startRead(file);
 
@@ -394,7 +398,6 @@ int readFile_handler(FileSystem_t * fs, int clientFd, char * path){
     retVal = 0;
     readFile_handler_END:
     server_log("Il client %d ha completato la richiesta. Valore ritornato: %d", clientFd, retVal);
-    EXIT_ON(pthread_mutex_unlock(&fs->fs_lock), != 0);
     if (writen(clientFd, &retVal, sizeof(int)) != sizeof(int)) return -1;
     else return 0;
 
@@ -865,7 +868,7 @@ void printFs(FileSystem_t * fs){
 }
 
 void statistiche(FileSystem_t * fs){
-    printf("*** Statistiche di utilizzo ***\n");
+    printf("\n\n*************** Statistiche di utilizzo ***************\n");
     printf("Numero di file massimo memorizzato: %d\n", fs->maxRNumFile);
     printf("Occupazione di memoria massima raggiunta: %d\n", fs->maxRSize);
     printf("Numero di evict nella cache: %d\n", fs->evictCount);
