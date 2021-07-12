@@ -9,7 +9,7 @@
 #include <string.h>
 #include <stdio.h>
 #define UNIX_PATH_MAX 108
-#define MAX_CONNECTION_QUEUE 32
+#define MAX_CONNECTION_QUEUE 1024
 
 int updatemax(fd_set set, int fdmax);
 

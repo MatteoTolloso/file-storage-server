@@ -8,7 +8,7 @@
 #include <string.h>
 #include <errno.h>
 
-#define SHARED_QUEUE_MAX_DIM 16
+#define SHARED_QUEUE_MAX_DIM 2048
 
 typedef struct _sq{
     int *set;

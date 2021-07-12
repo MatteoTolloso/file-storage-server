@@ -172,6 +172,7 @@ int main(int argc, char ** argv){
                 }
                 FD_CLR(socket_fd, &set); // non ascolto nuove richieste di connessione
                 fd_max = updatemax(set, fd_max);
+                activeClients = 0;
                 server_log("Inizio terminazione veloce");
             }
             continue;
